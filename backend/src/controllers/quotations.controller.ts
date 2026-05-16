@@ -1,0 +1,585 @@
+import { Request, Response } from 'express';
+import { prisma } from '../utils/prisma';
+import { AuthRequest } from '../middleware/auth.middleware';
+import { generateQuotationNumber } from '../services/quotationNumber.service';
+import { calculateGst } from '../services/gst.service';
+
+export const getNextQuotationNumber = async (req: Request, res: Response) => {
+  try {
+    const quotationNumber = await generateQuotationNumber();
+    res.json({ quotationNumber });
+  } catch (error) {
+    console.error('Error generating quotation number:', error);
+    res.status(500).json({ message: 'Error generating quotation number' });
+  }
+};
+
+export const createQuotation = async (req: AuthRequest, res: Response) => {
+  try {
+    const { inquiryId, items, subtotal, gstRate, notes } = req.body;
+
+    // --- Validation ---
+    if (!inquiryId) return res.status(400).json({ message: 'inquiryId is required' });
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: 'At least one quotation item is required' });
+    }
+    if (subtotal === undefined || subtotal === null || Number(subtotal) <= 0) {
+      return res.status(400).json({ message: 'Subtotal must be greater than 0' });
+    }
+
+    const inquiry = await prisma.inquiry.findUnique({
+      where: { id: Number(inquiryId) }
+    });
+
+    if (!inquiry) {
+      return res.status(404).json({ message: 'Inquiry not found' });
+    }
+
+    // Validate items based on department
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (!item.placeName || item.placeName.trim() === '') {
+        return res.status(400).json({ message: `Item ${i + 1}: Place name is required` });
+      }
+      if (inquiry.department === 'VIDEO') {
+        if (!item.equipmentType || item.equipmentType.trim() === '') {
+          return res.status(400).json({ message: `Item ${i + 1}: Equipment type is required` });
+        }
+        if (!item.ratePerDay || Number(item.ratePerDay) <= 0) {
+          return res.status(400).json({ message: `Item ${i + 1}: Rate per day must be greater than 0` });
+        }
+        if (!item.days || Number(item.days) <= 0) {
+          return res.status(400).json({ message: `Item ${i + 1}: Days must be at least 1` });
+        }
+      } else if (inquiry.department === 'LED') {
+        if (!item.ledType || item.ledType.trim() === '') {
+          return res.status(400).json({ message: `Item ${i + 1}: LED type is required` });
+        }
+        if (!item.heightFt || Number(item.heightFt) <= 0) {
+          return res.status(400).json({ message: `Item ${i + 1}: Height must be greater than 0` });
+        }
+        if (!item.widthFt || Number(item.widthFt) <= 0) {
+          return res.status(400).json({ message: `Item ${i + 1}: Width must be greater than 0` });
+        }
+        if (!item.ratePerSqft || Number(item.ratePerSqft) <= 0) {
+          return res.status(400).json({ message: `Item ${i + 1}: Rate per sqft must be greater than 0` });
+        }
+        if (!item.days || Number(item.days) <= 0) {
+          return res.status(400).json({ message: `Item ${i + 1}: Days must be at least 1` });
+        }
+      }
+    }
+
+    const quotationNumber = await generateQuotationNumber();
+
+    // Compute GST
+    const gst = calculateGst(Number(subtotal));
+    const effectiveGstRate = Number(gstRate || 18);
+
+    const quotation = await prisma.$transaction(async (tx) => {
+      const q = await tx.quotation.create({
+        data: {
+          quotationNumber,
+          inquiryId: Number(inquiryId),
+          subtotal: Number(subtotal),
+          gstRate: effectiveGstRate,
+          cgstAmount: gst.cgst,
+          sgstAmount: gst.sgst,
+          totalAmount: gst.total,
+          notes,
+          createdById: req.user?.userId,
+          status: 'DRAFT'
+        }
+      });
+
+      if (inquiry.department === 'VIDEO') {
+        for (const item of items) {
+          await tx.videoQuotationItem.create({
+            data: {
+              quotationId: q.id,
+              placeName: item.placeName || 'Default',
+              position: item.position || '',
+              equipmentType: item.equipmentType,
+              ratePerDay: Number(item.ratePerDay),
+              days: Number(item.days),
+              totalAmount: Number(item.ratePerDay) * Number(item.days)
+            }
+          });
+        }
+      } else if (inquiry.department === 'LED') {
+        for (const item of items) {
+          const sqftPerDay = Number(item.heightFt) * Number(item.widthFt) * Number(item.nos || 1);
+          const totalAmount = sqftPerDay * Number(item.ratePerSqft) * Number(item.days);
+          await tx.ledQuotationItem.create({
+            data: {
+              quotationId: q.id,
+              placeName: item.placeName || 'Default',
+              locationName: item.locationName || '',
+              ledType: item.ledType,
+              heightFt: Number(item.heightFt),
+              widthFt: Number(item.widthFt),
+              nos: Number(item.nos || 1),
+              sqftPerDay,
+              ratePerSqft: Number(item.ratePerSqft),
+              days: Number(item.days),
+              totalAmount
+            }
+          });
+        }
+      }
+
+      await tx.inquiry.update({
+        where: { id: Number(inquiryId) },
+        data: { status: 'QUOTATION_DRAFT' }
+      });
+
+      return q;
+    });
+
+    res.status(201).json(quotation);
+  } catch (error) {
+    console.error('Error creating quotation:', error);
+    res.status(500).json({ message: 'Error creating quotation' });
+  }
+};
+
+export const getQuotationsByInquiry = async (req: Request, res: Response) => {
+  try {
+    const { inquiryId } = req.params;
+    const quotations = await prisma.quotation.findMany({
+      where: { inquiryId: Number(inquiryId) },
+      include: {
+        videoQuotationItems: true,
+        ledQuotationItems: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(quotations);
+  } catch (error) {
+    console.error('Error fetching quotations:', error);
+    res.status(500).json({ message: 'Error fetching quotations' });
+  }
+};
+
+export const getQuotationById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const quotation = await prisma.quotation.findUnique({
+      where: { id: Number(id) },
+      include: {
+        inquiry: {
+          include: { client: true }
+        },
+        videoQuotationItems: true,
+        ledQuotationItems: true
+      }
+    });
+    
+    if (!quotation) return res.status(404).json({ message: 'Quotation not found' });
+    res.json(quotation);
+  } catch (error) {
+    console.error('Error fetching quotation:', error);
+    res.status(500).json({ message: 'Error fetching quotation' });
+  }
+};
+
+export const updateQuotation = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { subtotal, gstRate, notes, items } = req.body;
+
+    const existing = await prisma.quotation.findUnique({ where: { id: Number(id) } });
+    if (!existing) return res.status(404).json({ message: 'Quotation not found' });
+    if (existing.status !== 'DRAFT' && existing.status !== 'APPROVED') {
+      return res.status(400).json({ message: 'Only DRAFT or APPROVED quotations can be edited' });
+    }
+
+    const gst = calculateGst(Number(subtotal));
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const q = await tx.quotation.update({
+        where: { id: Number(id) },
+        data: {
+          subtotal: Number(subtotal),
+          gstRate: Number(gstRate || 18),
+          cgstAmount: gst.cgst,
+          sgstAmount: gst.sgst,
+          totalAmount: gst.total,
+          notes,
+        }
+      });
+
+      // If items provided, delete old and recreate
+      if (items && items.length > 0) {
+        const inquiry = await tx.inquiry.findUnique({ where: { id: q.inquiryId } });
+        
+        await tx.videoQuotationItem.deleteMany({ where: { quotationId: q.id } });
+        await tx.ledQuotationItem.deleteMany({ where: { quotationId: q.id } });
+
+        if (inquiry?.department === 'VIDEO') {
+          for (const item of items) {
+            await tx.videoQuotationItem.create({
+              data: {
+                quotationId: q.id,
+                placeName: item.placeName || 'Default',
+                position: item.position || '',
+                equipmentType: item.equipmentType,
+                ratePerDay: Number(item.ratePerDay),
+                days: Number(item.days),
+                totalAmount: Number(item.ratePerDay) * Number(item.days)
+              }
+            });
+          }
+        } else if (inquiry?.department === 'LED') {
+          for (const item of items) {
+            const sqftPerDay = Number(item.heightFt) * Number(item.widthFt) * Number(item.nos || 1);
+            const totalAmount = sqftPerDay * Number(item.ratePerSqft) * Number(item.days);
+            await tx.ledQuotationItem.create({
+              data: {
+                quotationId: q.id,
+                placeName: item.placeName || 'Default',
+                locationName: item.locationName || '',
+                ledType: item.ledType,
+                heightFt: Number(item.heightFt),
+                widthFt: Number(item.widthFt),
+                nos: Number(item.nos || 1),
+                sqftPerDay,
+                ratePerSqft: Number(item.ratePerSqft),
+                days: Number(item.days),
+                totalAmount
+              }
+            });
+          }
+        }
+      }
+
+      // Sync with Invoice if it exists
+      const linkedInvoice = await tx.invoice.findUnique({ 
+        where: { quotationId: q.id },
+        include: { payments: true }
+      });
+      
+      if (linkedInvoice) {
+        const totalPaid = (linkedInvoice as any).payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+        const newBalance = Math.max(0, gst.total - totalPaid);
+        let newStatus = 'PENDING';
+        if (newBalance <= 0) newStatus = 'PAID';
+        else if (totalPaid > 0) newStatus = 'PARTIAL';
+
+        await tx.invoice.update({
+          where: { id: linkedInvoice.id },
+          data: {
+            subtotal: Number(subtotal),
+            cgstAmount: gst.cgst,
+            sgstAmount: gst.sgst,
+            grossTotal: gst.total,
+            balanceAmount: newBalance,
+            status: newStatus
+          }
+        });
+      }
+
+      return tx.quotation.findUnique({
+        where: { id: q.id },
+        include: { videoQuotationItems: true, ledQuotationItems: true }
+      });
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating quotation:', error);
+    res.status(500).json({ message: 'Error updating quotation' });
+  }
+};
+
+export const reviseQuotation = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { items, subtotal, gstRate, notes } = req.body;
+
+    const existing = await prisma.quotation.findUnique({
+      where: { id: Number(id) },
+      include: { videoQuotationItems: true, ledQuotationItems: true }
+    });
+    if (!existing) return res.status(404).json({ message: 'Quotation not found' });
+
+    const revisionNumber = existing.revisionNumber + 1;
+    const revisionSuffix = `-${revisionNumber}`;
+    const quotationNumber = `${existing.quotationNumber}${revisionSuffix}`;
+    const gst = calculateGst(Number(subtotal));
+
+    const revised = await prisma.$transaction(async (tx) => {
+      // Mark old quotation as REVISED
+      await tx.quotation.update({
+        where: { id: Number(id) },
+        data: { status: 'REVISED' }
+      });
+
+      const q = await tx.quotation.create({
+        data: {
+          quotationNumber,
+          inquiryId: existing.inquiryId,
+          revisionNumber,
+          parentQuotationId: existing.id,
+          subtotal: Number(subtotal),
+          gstRate: Number(gstRate || 18),
+          cgstAmount: gst.cgst,
+          sgstAmount: gst.sgst,
+          totalAmount: gst.total,
+          notes,
+          createdById: req.user?.userId,
+          status: 'DRAFT'
+        }
+      });
+
+      // Copy/create items
+      const inquiry = await tx.inquiry.findUnique({ where: { id: q.inquiryId } });
+      const itemsToCreate = items || (inquiry?.department === 'VIDEO' ? existing.videoQuotationItems : existing.ledQuotationItems);
+
+      if (inquiry?.department === 'VIDEO') {
+        for (const item of itemsToCreate) {
+          await tx.videoQuotationItem.create({
+            data: {
+              quotationId: q.id,
+              placeName: item.placeName || 'Default',
+              position: item.position || '',
+              equipmentType: item.equipmentType,
+              ratePerDay: Number(item.ratePerDay),
+              days: Number(item.days),
+              totalAmount: Number(item.ratePerDay) * Number(item.days)
+            }
+          });
+        }
+      } else if (inquiry?.department === 'LED') {
+        for (const item of itemsToCreate) {
+          const sqftPerDay = Number(item.heightFt) * Number(item.widthFt) * Number(item.nos || 1);
+          const totalAmount = sqftPerDay * Number(item.ratePerSqft) * Number(item.days);
+          await tx.ledQuotationItem.create({
+            data: {
+              quotationId: q.id,
+              placeName: item.placeName || 'Default',
+              locationName: item.locationName || '',
+              ledType: item.ledType,
+              heightFt: Number(item.heightFt),
+              widthFt: Number(item.widthFt),
+              nos: Number(item.nos || 1),
+              sqftPerDay,
+              ratePerSqft: Number(item.ratePerSqft),
+              days: Number(item.days),
+              totalAmount
+            }
+          });
+        }
+      }
+
+      return q;
+    });
+
+    res.status(201).json(revised);
+  } catch (error) {
+    console.error('Error revising quotation:', error);
+    res.status(500).json({ message: 'Error revising quotation' });
+  }
+};
+
+export const approveQuotation = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { signedCopyPath } = req.body;
+
+    const existing = await prisma.quotation.findUnique({ where: { id: Number(id) } });
+    if (!existing) return res.status(404).json({ message: 'Quotation not found' });
+    if (existing.status !== 'DRAFT' && existing.status !== 'SENT') {
+      return res.status(400).json({ message: 'Only DRAFT or SENT quotations can be approved' });
+    }
+
+    const updated = await prisma.quotation.update({
+      where: { id: Number(id) },
+      data: {
+        status: 'APPROVED',
+        approvedAt: new Date(),
+        ...(signedCopyPath && { signedCopyPath })
+      }
+    });
+
+    // Update inquiry status to CONFIRMED
+    await prisma.inquiry.update({
+      where: { id: updated.inquiryId },
+      data: { status: 'CONFIRMED' }
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error approving quotation:', error);
+    res.status(500).json({ message: 'Error approving quotation' });
+  }
+};
+
+export const declineQuotation = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const existing = await prisma.quotation.findUnique({ where: { id: Number(id) } });
+    if (!existing) return res.status(404).json({ message: 'Quotation not found' });
+    if (existing.status !== 'DRAFT' && existing.status !== 'SENT' && existing.status !== 'APPROVED') {
+      return res.status(400).json({ message: 'Only DRAFT, SENT or APPROVED quotations can be declined' });
+    }
+
+    const updated = await prisma.quotation.update({
+      where: { id: Number(id) },
+      data: {
+        status: 'REJECTED',
+        notes: reason ? `${existing.notes || ''}\n[DECLINED]: ${reason}`.trim() : existing.notes,
+      }
+    });
+
+    // If it was APPROVED, we might need to revert the inquiry status
+    if (existing.status === 'APPROVED') {
+      const otherApproved = await prisma.quotation.count({
+        where: { inquiryId: existing.inquiryId, status: 'APPROVED', NOT: { id: Number(id) } }
+      });
+      if (otherApproved === 0) {
+        await prisma.inquiry.update({
+          where: { id: existing.inquiryId },
+          data: { status: 'INQUIRY' }
+        });
+      }
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error declining quotation:', error);
+    res.status(500).json({ message: 'Error declining quotation' });
+  }
+};
+
+export const sendQuotation = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await prisma.quotation.findUnique({ where: { id: Number(id) } });
+    if (!existing) return res.status(404).json({ message: 'Quotation not found' });
+    if (existing.status !== 'DRAFT') {
+      return res.status(400).json({ message: 'Only DRAFT quotations can be sent' });
+    }
+
+    const updated = await prisma.quotation.update({
+      where: { id: Number(id) },
+      data: {
+        status: 'SENT',
+        sentAt: new Date()
+      }
+    });
+
+    // Update inquiry status
+    await prisma.inquiry.update({
+      where: { id: updated.inquiryId },
+      data: { status: 'QUOTATION_SENT' }
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error sending quotation:', error);
+    res.status(500).json({ message: 'Error sending quotation' });
+  }
+};
+
+export const uploadSignedCopy = async (req: any, res: Response) => {
+  try {
+    const { id } = req.params;
+    const file = req.file as Express.Multer.File;
+
+    if (!file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const quotation = await prisma.quotation.findUnique({ where: { id: Number(id) } });
+    if (!quotation) {
+      return res.status(404).json({ message: 'Quotation not found' });
+    }
+
+    const updated = await prisma.quotation.update({
+      where: { id: Number(id) },
+      data: { signedCopyPath: file.path }
+    });
+
+    res.json({ message: 'Signed copy uploaded successfully', signedCopyPath: updated.signedCopyPath });
+  } catch (error) {
+    console.error('Error uploading signed copy:', error);
+    res.status(500).json({ message: 'Error uploading signed copy' });
+  }
+};
+
+export const updateQuotationStatus = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status, reason } = req.body;
+
+    // Validate allowed status values
+    const allowedStatuses = ['DRAFT', 'SENT', 'APPROVED', 'REVISED', 'REJECTED'];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ message: `Invalid status. Allowed: ${allowedStatuses.join(', ')}` });
+    }
+
+    const existing = await prisma.quotation.findUnique({ where: { id: Number(id) } });
+    if (!existing) return res.status(404).json({ message: 'Quotation not found' });
+
+    // If already in that status, just return success (idempotency)
+    if (existing.status === status) {
+      return res.json(existing);
+    }
+
+    // Status transition validation
+    const validTransitions: Record<string, string[]> = {
+      'DRAFT': ['SENT', 'APPROVED', 'REJECTED'],
+      'SENT': ['APPROVED', 'REJECTED'],
+      'APPROVED': ['REJECTED'],
+      'REVISED': [],
+      'REJECTED': ['DRAFT', 'SENT', 'APPROVED'],
+    };
+    if (!validTransitions[existing.status]?.includes(status)) {
+      return res.status(400).json({ message: `Cannot transition from ${existing.status} to ${status}` });
+    }
+
+    const updated = await prisma.quotation.update({
+      where: { id: Number(id) },
+      data: { 
+        status,
+        approvedAt: status === 'APPROVED' ? new Date() : existing.approvedAt,
+        notes: (status === 'REJECTED' && reason) 
+          ? `${existing.notes || ''}\n[REJECTED]: ${reason}`.trim() 
+          : existing.notes
+      }
+    });
+
+    // Inquiry status synchronization
+    if (status === 'APPROVED') {
+      await prisma.inquiry.update({
+        where: { id: updated.inquiryId },
+        data: { status: 'CONFIRMED' }
+      });
+    } else if (status === 'REJECTED' && existing.status === 'APPROVED') {
+      // Check if any other quotation is still approved for this inquiry
+      const otherApproved = await prisma.quotation.count({
+        where: { inquiryId: existing.inquiryId, status: 'APPROVED', NOT: { id: Number(id) } }
+      });
+      if (otherApproved === 0) {
+        await prisma.inquiry.update({
+          where: { id: existing.inquiryId },
+          data: { status: 'INQUIRY' }
+        });
+      }
+    } else if (status === 'SENT') {
+      await prisma.inquiry.update({
+        where: { id: updated.inquiryId },
+        data: { status: 'QUOTATION_SENT' }
+      });
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating quotation status:', error);
+    res.status(500).json({ message: 'Error updating quotation status' });
+  }
+};

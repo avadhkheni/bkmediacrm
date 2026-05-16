@@ -1,0 +1,202 @@
+import { Request, Response } from 'express';
+import { prisma } from '../utils/prisma';
+
+export const getLedStock = async (req: Request, res: Response) => {
+  try {
+    const stock = await prisma.ledStock.findMany({
+      where: { deletedAt: null }
+    });
+    res.json(stock);
+  } catch (error) {
+    console.error('Error fetching LED stock:', error);
+    res.status(500).json({ message: 'Error fetching stock' });
+  }
+};
+
+export const createLedStock = async (req: Request, res: Response) => {
+  try {
+    const { 
+      companyName, 
+      ledType, 
+      cabinetHeightMm, 
+      cabinetWidthMm, 
+      cabinetsPerBox, 
+      totalCabinets, 
+      availableQuantity,
+      inUseQuantity,
+      maintenanceQuantity,
+      pricingSqft,
+      status,
+      warehouseId
+    } = req.body;
+
+    const totalBoxes = Math.ceil(Number(totalCabinets) / Number(cabinetsPerBox));
+
+    const stock = await prisma.ledStock.create({
+      data: {
+        companyName,
+        ledType,
+        cabinetHeightMm: Number(cabinetHeightMm),
+        cabinetWidthMm: Number(cabinetWidthMm),
+        cabinetsPerBox: Number(cabinetsPerBox),
+        totalCabinets: Number(totalCabinets),
+        availableQuantity: availableQuantity !== undefined ? Number(availableQuantity) : Number(totalCabinets),
+        inUseQuantity: inUseQuantity ? Number(inUseQuantity) : 0,
+        maintenanceQuantity: maintenanceQuantity ? Number(maintenanceQuantity) : 0,
+        pricingSqft: Number(pricingSqft),
+        totalBoxes: totalBoxes,
+        status: status || "AVAILABLE",
+        warehouseId: warehouseId ? Number(warehouseId) : null
+      }
+    });
+    res.status(201).json(stock);
+  } catch (error) {
+    console.error('Error creating LED stock:', error);
+    res.status(500).json({ message: 'Error creating stock' });
+  }
+};
+
+export const getLedStockById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const stock = await prisma.ledStock.findUnique({ where: { id: Number(id) } });
+    if (!stock) {
+      res.status(404).json({ message: 'Stock not found' });
+      return;
+    }
+    res.json(stock);
+  } catch (error) {
+    console.error('Error fetching LED stock:', error);
+    res.status(500).json({ message: 'Error fetching stock' });
+  }
+};
+
+export const updateLedStock = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { 
+      companyName, 
+      ledType, 
+      cabinetHeightMm, 
+      cabinetWidthMm, 
+      cabinetsPerBox, 
+      totalCabinets, 
+      availableQuantity,
+      inUseQuantity,
+      maintenanceQuantity,
+      pricingSqft,
+      status,
+      warehouseId
+    } = req.body;
+
+    const totalBoxes = Math.ceil(Number(totalCabinets) / Number(cabinetsPerBox));
+
+    const stock = await prisma.ledStock.update({
+      where: { id: Number(id) },
+      data: {
+        companyName,
+        ledType,
+        cabinetHeightMm: Number(cabinetHeightMm),
+        cabinetWidthMm: Number(cabinetWidthMm),
+        cabinetsPerBox: Number(cabinetsPerBox),
+        totalCabinets: (availableQuantity !== undefined || inUseQuantity !== undefined || maintenanceQuantity !== undefined)
+          ? (Number(availableQuantity || 0) + Number(inUseQuantity || 0) + Number(maintenanceQuantity || 0))
+          : Number(totalCabinets),
+        availableQuantity: availableQuantity !== undefined ? Number(availableQuantity) : undefined,
+        inUseQuantity: inUseQuantity !== undefined ? Number(inUseQuantity) : undefined,
+        maintenanceQuantity: maintenanceQuantity !== undefined ? Number(maintenanceQuantity) : undefined,
+        pricingSqft: Number(pricingSqft),
+        totalBoxes: Math.ceil(( (availableQuantity !== undefined || inUseQuantity !== undefined || maintenanceQuantity !== undefined) 
+          ? (Number(availableQuantity || 0) + Number(inUseQuantity || 0) + Number(maintenanceQuantity || 0))
+          : Number(totalCabinets) ) / Number(cabinetsPerBox)),
+        status: status || "AVAILABLE",
+        warehouseId: warehouseId ? Number(warehouseId) : null
+      }
+    });
+    res.json(stock);
+  } catch (error) {
+    console.error('Error updating LED stock:', error);
+    res.status(500).json({ message: 'Error updating stock' });
+  }
+};
+
+export const getWarehouseAllocations = async (req: Request, res: Response) => {
+  try {
+    const { inquiryId } = req.query;
+    const allocations = await prisma.ledWarehouseAllocation.findMany({
+      where: { inquiryId: Number(inquiryId) },
+      include: { ledStock: true }
+    });
+    res.json(allocations);
+  } catch (error) {
+    console.error('Error fetching allocations:', error);
+    res.status(500).json({ message: 'Error fetching allocations' });
+  }
+};
+
+export const createWarehouseAllocation = async (req: Request, res: Response) => {
+  try {
+    const { inquiryId, ledStockId, allocatedSqft } = req.body;
+    const allocation = await prisma.ledWarehouseAllocation.create({
+      data: {
+        inquiryId: Number(inquiryId),
+        ledStockId: Number(ledStockId),
+        allocatedSqft: Number(allocatedSqft)
+      }
+    });
+    res.status(201).json(allocation);
+  } catch (error) {
+    console.error('Error creating allocation:', error);
+    res.status(500).json({ message: 'Error creating allocation' });
+  }
+};
+
+export const getDispatchBoxes = async (req: Request, res: Response) => {
+  try {
+    const { inquiryId } = req.query;
+    const boxes = await prisma.ledDispatchBoxEntry.findMany({
+      where: { inquiryId: Number(inquiryId) }
+    });
+    res.json(boxes);
+  } catch (error) {
+    console.error('Error fetching dispatch boxes:', error);
+    res.status(500).json({ message: 'Error fetching boxes' });
+  }
+};
+
+export const createDispatchBox = async (req: Request, res: Response) => {
+  try {
+    const { inquiryId, vehicleName, vehicleNumber, companyName, numBoxes, cabinetsPerBox } = req.body;
+    const totalCabinets = Number(numBoxes) * Number(cabinetsPerBox);
+    
+    const box = await prisma.ledDispatchBoxEntry.create({
+      data: {
+        inquiryId: Number(inquiryId),
+        vehicleName,
+        vehicleNumber,
+        companyName,
+        numBoxes: Number(numBoxes),
+        cabinetsPerBox: Number(cabinetsPerBox),
+        totalCabinets
+      }
+    });
+    res.status(201).json(box);
+  } catch (error) {
+    console.error('Error creating dispatch box:', error);
+    res.status(500).json({ message: 'Error creating box' });
+  }
+};
+
+export const deleteLedStock = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await prisma.ledStock.update({
+      where: { id: Number(id) },
+      data: { deletedAt: new Date() },
+    });
+    res.json({ message: 'LED stock soft-deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting LED stock:', error);
+    res.status(500).json({ message: 'Error deleting LED stock' });
+  }
+};
