@@ -58,6 +58,20 @@ export default function InventoryPage() {
             });
           });
         }
+        if (warehouse.soundStock) {
+          warehouse.soundStock.forEach((s: any) => {
+            allInventory.push({
+              id: `snd-${s.id}`,
+              name: s.name,
+              category: s.category,
+              brand: s.brand || 'N/A',
+              warehouseName: warehouse.name,
+              totalQuantity: s.totalQuantity || 1,
+              status: s.status,
+              type: 'SOUND'
+            });
+          });
+        }
       });
       setInventory(allInventory);
     } catch (error) {
@@ -125,7 +139,9 @@ export default function InventoryPage() {
                   <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="py-4 px-6">
                       <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                        item.type === 'VIDEO' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400' : 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400'
+                        item.type === 'VIDEO' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400' : 
+                        item.type === 'LED' ? 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400' :
+                        'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
                       }`}>
                         {item.type}
                       </span>

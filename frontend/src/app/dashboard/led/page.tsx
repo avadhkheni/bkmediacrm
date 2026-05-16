@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Users } from "lucide-react";
+import VendorSection from "@/components/VendorSection";
 
 interface LedStock {
   id: number;
@@ -22,7 +23,7 @@ export default function LedDepartmentPage() {
   const router = useRouter();
   const [stock, setStock] = useState<LedStock[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'stock' | 'calculator' | 'dispatch'>('stock');
+  const [activeTab, setActiveTab] = useState<'stock' | 'calculator' | 'dispatch' | 'vendors'>('stock');
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
 
   // Calculator State
@@ -102,13 +103,15 @@ export default function LedDepartmentPage() {
         >
           Screen Size Calculator
         </button>
-        <button 
-          onClick={() => setActiveTab('dispatch')}
-          className={`px-6 py-4 font-medium text-sm transition-colors border-b-2 ${
-            activeTab === 'dispatch' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
-          }`}
-        >
           Dispatch Overview
+        </button>
+        <button 
+          onClick={() => setActiveTab('vendors')}
+          className={`px-6 py-4 font-medium text-sm transition-colors border-b-2 ${
+            activeTab === 'vendors' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
+          } flex items-center gap-2`}
+        >
+          <Users className="w-4 h-4" /> Vendors
         </button>
       </div>
 
@@ -330,6 +333,10 @@ export default function LedDepartmentPage() {
             )}
           </div>
         </div>
+      )}
+
+      {activeTab === 'vendors' && (
+        <VendorSection department="LED" />
       )}
     </div>
   );

@@ -5,11 +5,13 @@ import { AuthRequest } from '../middleware/auth.middleware';
 export const getAllNotifications = async (req: AuthRequest, res: Response) => {
   try {
     const userRole = req.user?.role || '';
-    const all = getNotifications();
+    const all = await getNotifications();
+    
     // Filter notifications for the user's role (ADMIN sees all)
     const filtered = userRole === 'ADMIN'
       ? all
-      : all.filter(n => n.targetRoles.includes(userRole));
+      : all.filter(n => n.targetRoles.split(',').includes(userRole));
+      
     res.json(filtered);
   } catch (error) {
     console.error('Error fetching notifications:', error);
@@ -20,7 +22,7 @@ export const getAllNotifications = async (req: AuthRequest, res: Response) => {
 export const markAsRead = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    markNotificationRead(id);
+    await markNotificationRead(id);
     res.json({ message: 'Notification marked as read' });
   } catch (error) {
     console.error('Error marking notification:', error);

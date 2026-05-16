@@ -10,6 +10,7 @@ export default function DispatchChecklistPage() {
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [videoStock, setVideoStock] = useState<any[]>([]);
   const [ledStock, setLedStock] = useState<any[]>([]);
+  const [soundStock, setSoundStock] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
@@ -24,9 +25,9 @@ export default function DispatchChecklistPage() {
 
   const [checklist, setChecklist] = useState([
     { name: "Equipment Checked", isPassed: false, notes: "" },
-    { name: "Battery Included", isPassed: false, notes: "" },
-    { name: "Charger Included", isPassed: false, notes: "" },
-    { name: "Cable Included", isPassed: false, notes: "" },
+    { name: "Battery/Power Included", isPassed: false, notes: "" },
+    { name: "Cables/Connectors Included", isPassed: false, notes: "" },
+    { name: "Accessories Included", isPassed: false, notes: "" },
     { name: "Tested", isPassed: false, notes: "" },
     { name: "No Damage", isPassed: false, notes: "" },
   ]);
@@ -37,14 +38,16 @@ export default function DispatchChecklistPage() {
 
   const fetchData = async () => {
     try {
-      const [whRes, vidRes, ledRes] = await Promise.all([
+      const [whRes, vidRes, ledRes, sndRes] = await Promise.all([
         api.get("/warehouse"),
         api.get("/video/equipment?status=AVAILABLE"),
-        api.get("/led/stock") // Filter later or ensure status
+        api.get("/led/stock"),
+        api.get("/sound/equipment?status=AVAILABLE")
       ]);
       setWarehouses(whRes.data);
       setVideoStock(vidRes.data);
       setLedStock(ledRes.data.filter((l: any) => l.status === 'AVAILABLE'));
+      setSoundStock(sndRes.data);
     } catch (error) {
       console.error("Failed to load data", error);
     }
@@ -74,6 +77,7 @@ export default function DispatchChecklistPage() {
       const itemToDispatch = {
         videoEquipId: form.equipmentType === 'VIDEO' ? form.equipmentId : null,
         ledStockId: form.equipmentType === 'LED' ? form.equipmentId : null,
+        soundEquipId: form.equipmentType === 'SOUND' ? form.equipmentId : null,
         warehouseId: form.warehouseId,
         quantity: form.quantity
       };
@@ -161,6 +165,7 @@ export default function DispatchChecklistPage() {
               >
                 <option value="VIDEO">Video Equipment</option>
                 <option value="LED">LED Stock</option>
+                <option value="SOUND">Sound Equipment</option>
               </select>
             </div>
             <div className="md:col-span-2">
@@ -176,9 +181,13 @@ export default function DispatchChecklistPage() {
                   videoStock.filter(v => form.warehouseId ? v.warehouseId === Number(form.warehouseId) : true).map(v => (
                     <option key={v.id} value={v.id}>{v.name} ({v.serialNumber})</option>
                   ))
-                ) : (
+                ) : form.equipmentType === 'LED' ? (
                   ledStock.filter(l => form.warehouseId ? l.warehouseId === Number(form.warehouseId) : true).map(l => (
                     <option key={l.id} value={l.id}>{l.companyName} {l.ledType} - {l.totalCabinets} avail.</option>
+                  ))
+                ) : (
+                  soundStock.filter(s => form.warehouseId ? s.warehouseId === Number(form.warehouseId) : true).map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.serialNumber || 'No Serial'})</option>
                   ))
                 )}
               </select>

@@ -5,8 +5,11 @@ export const getWarehouses = async (req: Request, res: Response) => {
   try {
     const warehouses = await prisma.warehouse.findMany({
       include: {
+        videoStock: true,
+        ledStock: true,
+        soundStock: true,
         _count: {
-          select: { videoStock: true, ledStock: true }
+          select: { videoStock: true, ledStock: true, soundStock: true }
         }
       }
     });
@@ -97,17 +100,20 @@ export const createDispatch = async (req: Request, res: Response) => {
   try {
     const { inquiryId, staffName, notes, items, itemsToCheck } = req.body;
     
-    // itemsToCheck would be the checklist booleans.
-    // items would be [{ videoEquipId: 1, quantity: 1, warehouseId: 1 }]
-    
+    const numericInquiryId = Number(inquiryId);
+    if (isNaN(numericInquiryId)) {
+      res.status(400).json({ message: 'Invalid Inquiry ID' });
+      return;
+    }
+
     const checklist = await prisma.checklist.create({
       data: {
         type: 'DISPATCH',
-        inquiryId: Number(inquiryId),
+        inquiryId: numericInquiryId,
         staffName,
         notes,
         items: {
-          create: itemsToCheck.map((check: any) => ({
+          create: (itemsToCheck || []).map((check: any) => ({
             checkName: check.name,
             isPassed: check.isPassed,
             notes: check.notes
@@ -116,31 +122,53 @@ export const createDispatch = async (req: Request, res: Response) => {
       }
     });
 
-    // Update statuses
-    for (const item of items) {
-      if (item.videoEquipId) {
-        await prisma.videoEquipment.update({
-          where: { id: item.videoEquipId },
-          data: { status: 'IN_USE' }
-        });
-      } else if (item.ledStockId) {
-        await prisma.ledStock.update({
-          where: { id: item.ledStockId },
-          data: { status: 'IN_USE' }
+    // Update statuses and quantities
+    if (items && Array.isArray(items)) {
+      for (const item of items) {
+        const qty = Number(item.quantity) || 1;
+        
+        if (item.videoEquipId) {
+          await prisma.videoEquipment.update({
+            where: { id: Number(item.videoEquipId) },
+            data: { 
+              status: 'IN_USE',
+              availableQuantity: { decrement: qty },
+              inUseQuantity: { increment: qty }
+            }
+          });
+        } else if (item.ledStockId) {
+          await prisma.ledStock.update({
+            where: { id: Number(item.ledStockId) },
+            data: { 
+              status: 'IN_USE',
+              availableQuantity: { decrement: qty },
+              inUseQuantity: { increment: qty }
+            }
+          });
+        } else if (item.soundEquipId) {
+          await prisma.soundEquipment.update({
+            where: { id: Number(item.soundEquipId) },
+            data: { 
+              status: 'IN_USE',
+              availableQuantity: { decrement: qty },
+              inUseQuantity: { increment: qty }
+            }
+          });
+        }
+
+        await prisma.stockMovement.create({
+          data: {
+            warehouseId: Number(item.warehouseId),
+            videoEquipId: item.videoEquipId ? Number(item.videoEquipId) : null,
+            ledStockId: item.ledStockId ? Number(item.ledStockId) : null,
+            soundEquipId: item.soundEquipId ? Number(item.soundEquipId) : null,
+            action: 'SENT_TO_ORDER',
+            quantity: qty,
+            inquiryId: numericInquiryId,
+            notes: 'Dispatched for event'
+          }
         });
       }
-
-      await prisma.stockMovement.create({
-        data: {
-          warehouseId: Number(item.warehouseId),
-          videoEquipId: item.videoEquipId ? Number(item.videoEquipId) : null,
-          ledStockId: item.ledStockId ? Number(item.ledStockId) : null,
-          action: 'SENT_TO_ORDER',
-          quantity: item.quantity,
-          inquiryId: Number(inquiryId),
-          notes: 'Dispatched for event'
-        }
-      });
     }
 
     res.status(201).json(checklist);
@@ -154,15 +182,21 @@ export const createReturn = async (req: Request, res: Response) => {
   try {
     const { inquiryId, staffName, notes, penaltyAmount, items, itemsToCheck } = req.body;
     
+    const numericInquiryId = Number(inquiryId);
+    if (isNaN(numericInquiryId)) {
+      res.status(400).json({ message: 'Invalid Inquiry ID' });
+      return;
+    }
+
     const checklist = await prisma.checklist.create({
       data: {
         type: 'RETURN',
-        inquiryId: Number(inquiryId),
+        inquiryId: numericInquiryId,
         staffName,
         notes,
         penaltyAmount: penaltyAmount ? Number(penaltyAmount) : null,
         items: {
-          create: itemsToCheck.map((check: any) => ({
+          create: (itemsToCheck || []).map((check: any) => ({
             checkName: check.name,
             isPassed: check.isPassed,
             notes: check.notes
@@ -171,32 +205,57 @@ export const createReturn = async (req: Request, res: Response) => {
       }
     });
 
-    for (const item of items) {
-      const newStatus = item.isDamaged ? 'DAMAGED' : 'AVAILABLE';
-      
-      if (item.videoEquipId) {
-        await prisma.videoEquipment.update({
-          where: { id: item.videoEquipId },
-          data: { status: newStatus }
-        });
-      } else if (item.ledStockId) {
-        await prisma.ledStock.update({
-          where: { id: item.ledStockId },
-          data: { status: newStatus }
+    if (items && Array.isArray(items)) {
+      for (const item of items) {
+        const qty = Number(item.quantity) || 1;
+        const isDamaged = item.isDamaged === true;
+        const newStatus = isDamaged ? 'DAMAGED' : 'AVAILABLE';
+        
+        if (item.videoEquipId) {
+          await prisma.videoEquipment.update({
+            where: { id: Number(item.videoEquipId) },
+            data: { 
+              status: newStatus,
+              availableQuantity: isDamaged ? undefined : { increment: qty },
+              inUseQuantity: { decrement: qty },
+              maintenanceQuantity: isDamaged ? { increment: qty } : undefined
+            }
+          });
+        } else if (item.ledStockId) {
+          await prisma.ledStock.update({
+            where: { id: Number(item.ledStockId) },
+            data: { 
+              status: newStatus,
+              availableQuantity: isDamaged ? undefined : { increment: qty },
+              inUseQuantity: { decrement: qty },
+              maintenanceQuantity: isDamaged ? { increment: qty } : undefined
+            }
+          });
+        } else if (item.soundEquipId) {
+          await prisma.soundEquipment.update({
+            where: { id: Number(item.soundEquipId) },
+            data: { 
+              status: newStatus,
+              availableQuantity: isDamaged ? undefined : { increment: qty },
+              inUseQuantity: { decrement: qty },
+              maintenanceQuantity: isDamaged ? { increment: qty } : undefined
+            }
+          });
+        }
+
+        await prisma.stockMovement.create({
+          data: {
+            warehouseId: Number(item.warehouseId),
+            videoEquipId: item.videoEquipId ? Number(item.videoEquipId) : null,
+            ledStockId: item.ledStockId ? Number(item.ledStockId) : null,
+            soundEquipId: item.soundEquipId ? Number(item.soundEquipId) : null,
+            action: isDamaged ? 'DAMAGED' : 'RETURNED',
+            quantity: qty,
+            inquiryId: numericInquiryId,
+            notes: isDamaged ? 'Returned with damage' : 'Returned safely'
+          }
         });
       }
-
-      await prisma.stockMovement.create({
-        data: {
-          warehouseId: Number(item.warehouseId),
-          videoEquipId: item.videoEquipId ? Number(item.videoEquipId) : null,
-          ledStockId: item.ledStockId ? Number(item.ledStockId) : null,
-          action: item.isDamaged ? 'DAMAGED' : 'RETURNED',
-          quantity: item.quantity,
-          inquiryId: Number(inquiryId),
-          notes: item.isDamaged ? 'Returned with damage' : 'Returned safely'
-        }
-      });
     }
 
     res.status(201).json(checklist);

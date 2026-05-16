@@ -1,49 +1,57 @@
 import cron from 'node-cron';
 import { prisma } from '../utils/prisma';
+import { Server } from 'socket.io';
 
-// In-memory notification store (in production, use DB or push notifications)
-interface Notification {
-  id: string;
-  type: string;
-  message: string;
-  targetRoles: string[];
-  inquiryId?: number;
-  createdAt: Date;
-  read: boolean;
+let io: Server;
+
+export function setIoInstance(socketIo: Server) {
+  io = socketIo;
 }
 
-let notifications: Notification[] = [];
-let notifCounter = 0;
-
-export function getNotifications(): Notification[] {
-  return notifications.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-}
-
-export function markNotificationRead(id: string): void {
-  const n = notifications.find(n => n.id === id);
-  if (n) n.read = true;
-}
-
-function addNotification(type: string, message: string, targetRoles: string[], inquiryId?: number) {
-  notifCounter++;
-  notifications.push({
-    id: `notif-${notifCounter}`,
-    type,
-    message,
-    targetRoles,
-    inquiryId,
-    createdAt: new Date(),
-    read: false,
+export async function getNotifications() {
+  return await prisma.notification.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: 100
   });
-  // Keep only last 100 notifications
-  if (notifications.length > 100) {
-    notifications = notifications.slice(-100);
+}
+
+export async function markNotificationRead(id: string) {
+  const numericId = parseInt(id.replace('notif-', '')) || parseInt(id);
+  if (!isNaN(numericId)) {
+    await prisma.notification.update({
+      where: { id: numericId },
+      data: { read: true }
+    });
   }
-  console.log(`[Notification] ${type}: ${message}`);
+}
+
+async function addNotification(type: string, message: string, targetRoles: string[], inquiryId?: number) {
+  try {
+    const newNotif = await prisma.notification.create({
+      data: {
+        type,
+        message,
+        targetRoles: targetRoles.join(','),
+        inquiryId,
+        read: false
+      }
+    });
+
+    // Emit live notification via socket
+    if (io) {
+      io.emit('new_notification', {
+        ...newNotif,
+        targetRoles: targetRoles // Send as array for frontend
+      });
+    }
+
+    console.log(`[Notification] ${type}: ${message}`);
+  } catch (error) {
+    console.error('Error creating notification:', error);
+  }
 }
 
 // ─── Cron Job 1: 3 days before event → Dept (product list reminder) ──────
-// Runs daily at 9:00 AM
 export function startEventReminderJob() {
   cron.schedule('0 9 * * *', async () => {
     try {
@@ -63,7 +71,7 @@ export function startEventReminderJob() {
       });
 
       for (const event of upcomingEvents) {
-        addNotification(
+        await addNotification(
           'EVENT_REMINDER_3D',
           `Event "${event.eventName}" for ${event.client?.name} starts in 3 days. Prepare product list!`,
           event.department === 'VIDEO' ? ['VIDEO_DEPT', 'OPERATIONAL'] : ['LED_DEPT', 'OPERATIONAL'],
@@ -77,7 +85,6 @@ export function startEventReminderJob() {
 }
 
 // ─── Cron Job 2: 4 days before event end → Accounts (payment reminder) ────
-// Runs daily at 9:30 AM
 export function startPaymentReminderJob() {
   cron.schedule('30 9 * * *', async () => {
     try {
@@ -101,7 +108,7 @@ export function startPaymentReminderJob() {
 
       for (const event of endingEvents) {
         if (event.invoices.length > 0) {
-          addNotification(
+          await addNotification(
             'PAYMENT_REMINDER',
             `Event "${event.eventName}" ending soon. Outstanding payment from ${event.client?.name}. Follow up!`,
             ['ACCOUNTS', 'FINANCE', 'ADMIN'],
@@ -117,8 +124,8 @@ export function startPaymentReminderJob() {
 
 // ─── Notification Triggers (called from controllers) ──────────────────────
 
-export function notifyQuotationApproved(inquiryId: number, eventName: string) {
-  addNotification(
+export async function notifyQuotationApproved(inquiryId: number, eventName: string) {
+  await addNotification(
     'QUOTATION_APPROVED',
     `Quotation for "${eventName}" has been approved. Warehouse and dept managers - prepare allocations!`,
     ['OPERATIONAL', 'VIDEO_DEPT', 'LED_DEPT'],
@@ -126,8 +133,8 @@ export function notifyQuotationApproved(inquiryId: number, eventName: string) {
   );
 }
 
-export function notifyPaymentReceived(inquiryId: number, eventName: string, amount: number) {
-  addNotification(
+export async function notifyPaymentReceived(inquiryId: number, eventName: string, amount: number) {
+  await addNotification(
     'PAYMENT_RECEIVED',
     `Payment of ₹${amount.toLocaleString()} received for "${eventName}".`,
     ['ADMIN', 'ACCOUNTS'],
@@ -135,8 +142,8 @@ export function notifyPaymentReceived(inquiryId: number, eventName: string, amou
   );
 }
 
-export function notifyStaffAssigned(staffId: number, staffName: string, eventName: string) {
-  addNotification(
+export async function notifyStaffAssigned(staffId: number, staffName: string, eventName: string) {
+  await addNotification(
     'STAFF_ASSIGNED',
     `${staffName} has been assigned to "${eventName}".`,
     ['STAFF', 'OPERATIONAL'],

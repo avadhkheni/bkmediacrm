@@ -251,6 +251,7 @@ export default function StaffPage() {
                     <option value="VIDEO">Video</option>
                     <option value="LED">LED</option>
                     <option value="SOUND">Sound</option>
+                    <option value="OFFICE">Office</option>
                     <option value="GENERAL">General</option>
                   </select>
                 </div>

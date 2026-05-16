@@ -654,3 +654,12 @@ model OfficeTask {
   updatedAt      DateTime  @updatedAt
 }
 
+model Notification {
+  id          Int      @id @default(autoincrement())
+  type        String   // e.g., QUOTATION_APPROVED, PAYMENT_RECEIVED
+  message     String
+  targetRoles String   // Stored as a comma-separated string for simplicity in SQLite (e.g., "ADMIN,OPERATIONAL")
+  inquiryId   Int?
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}

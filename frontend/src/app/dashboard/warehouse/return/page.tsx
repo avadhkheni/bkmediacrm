@@ -10,6 +10,7 @@ export default function ReturnChecklistPage() {
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [videoStock, setVideoStock] = useState<any[]>([]);
   const [ledStock, setLedStock] = useState<any[]>([]);
+  const [soundStock, setSoundStock] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
@@ -38,14 +39,16 @@ export default function ReturnChecklistPage() {
 
   const fetchData = async () => {
     try {
-      const [whRes, vidRes, ledRes] = await Promise.all([
+      const [whRes, vidRes, ledRes, sndRes] = await Promise.all([
         api.get("/warehouse"),
-        api.get("/video/equipment?status=IN_USE"), // Only fetch items that are actually out
-        api.get("/led/stock") 
+        api.get("/video/equipment?status=IN_USE"),
+        api.get("/led/stock"),
+        api.get("/sound/equipment?status=IN_USE")
       ]);
       setWarehouses(whRes.data);
       setVideoStock(vidRes.data);
       setLedStock(ledRes.data.filter((l: any) => l.status === 'IN_USE' || l.status === 'BOOKED'));
+      setSoundStock(sndRes.data);
     } catch (error) {
       console.error("Failed to load data", error);
     }
@@ -75,6 +78,7 @@ export default function ReturnChecklistPage() {
       const itemToReturn = {
         videoEquipId: form.equipmentType === 'VIDEO' ? form.equipmentId : null,
         ledStockId: form.equipmentType === 'LED' ? form.equipmentId : null,
+        soundEquipId: form.equipmentType === 'SOUND' ? form.equipmentId : null,
         warehouseId: form.warehouseId,
         quantity: form.quantity,
         isDamaged: form.isDamaged
@@ -164,6 +168,7 @@ export default function ReturnChecklistPage() {
               >
                 <option value="VIDEO">Video Equipment</option>
                 <option value="LED">LED Stock</option>
+                <option value="SOUND">Sound Equipment</option>
               </select>
             </div>
             <div className="md:col-span-2">
@@ -179,9 +184,13 @@ export default function ReturnChecklistPage() {
                   videoStock.filter(v => form.warehouseId ? v.warehouseId === Number(form.warehouseId) : true).map(v => (
                     <option key={v.id} value={v.id}>{v.name} ({v.serialNumber})</option>
                   ))
-                ) : (
+                ) : form.equipmentType === 'LED' ? (
                   ledStock.filter(l => form.warehouseId ? l.warehouseId === Number(form.warehouseId) : true).map(l => (
                     <option key={l.id} value={l.id}>{l.companyName} {l.ledType}</option>
+                  ))
+                ) : (
+                  soundStock.filter(s => form.warehouseId ? s.warehouseId === Number(form.warehouseId) : true).map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.serialNumber || 'No Serial'})</option>
                   ))
                 )}
               </select>

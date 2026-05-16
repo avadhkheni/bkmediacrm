@@ -16,8 +16,10 @@ import {
   ArrowUpRight,
   X,
   Pencil,
-  Trash2
+  Trash2,
+  Users
 } from "lucide-react";
+import VendorSection from "@/components/VendorSection";
 import { motion } from "framer-motion";
 const soundCategories = [
   { label: "All", value: "All" },
@@ -30,6 +32,7 @@ const soundCategories = [
 ];
 
 export default function SoundDashboard() {
+  const [activeTab, setActiveTab] = useState<'inventory' | 'vendors'>('inventory');
   const [equipment, setEquipment] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -176,8 +179,29 @@ export default function SoundDashboard() {
         ))}
       </div>
 
-      {/* Inventory Table Area */}
-      <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
+
+      {/* Tabs */}
+      <div className="flex border-b border-slate-200 dark:border-slate-700 mb-6 bg-white dark:bg-slate-800/50 rounded-t-xl overflow-hidden">
+        <button 
+          onClick={() => setActiveTab('inventory')}
+          className={`px-6 py-4 font-medium text-sm transition-colors border-b-2 ${
+            activeTab === 'inventory' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
+          } flex items-center gap-2`}
+        >
+          <Activity className="w-4 h-4" /> Equipment Inventory
+        </button>
+        <button 
+          onClick={() => setActiveTab('vendors')}
+          className={`px-6 py-4 font-medium text-sm transition-colors border-b-2 ${
+            activeTab === 'vendors' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
+          } flex items-center gap-2`}
+        >
+          <Users className="w-4 h-4" /> Vendors
+        </button>
+      </div>
+
+      {activeTab === 'inventory' && (
+        <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-50 dark:border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="relative w-full md:w-96">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -273,7 +297,11 @@ export default function SoundDashboard() {
             </tbody>
           </table>
         </div>
-      </div>
+      )}
+
+      {activeTab === 'vendors' && (
+        <VendorSection department="SOUND" />
+      )}
 
       {/* Add/Edit Modal */}
       {isModalOpen && (
