@@ -397,3 +397,135 @@ export const getStaffAnalytics = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Error fetching staff analytics' });
   }
 };
+
+export const getStaffYearlyHistory = async (req: Request, res: Response) => {
+  try {
+    const { staffId, year } = req.query;
+    if (!staffId) return res.status(400).json({ message: 'staffId is required' });
+    
+    const targetYear = year ? Number(year) : new Date().getFullYear();
+    const startDate = new Date(targetYear, 0, 1);
+    const endDate = new Date(targetYear, 11, 31, 23, 59, 59, 999);
+
+    const staff = await prisma.staff.findUnique({
+      where: { id: Number(staffId) },
+      select: { name: true, perDayRate: true }
+    });
+    if (!staff) return res.status(404).json({ message: 'Staff not found' });
+
+    const assignments = await prisma.eventStaffAssignment.findMany({
+      where: {
+        staffId: Number(staffId),
+        inquiry: {
+          startDate: { gte: startDate, lte: endDate }
+        }
+      },
+      include: {
+        inquiry: {
+          select: {
+            id: true,
+            eventName: true,
+            startDate: true,
+            endDate: true,
+            totalDays: true,
+            inquiryNumber: true
+          }
+        }
+      },
+      orderBy: { inquiry: { startDate: 'asc' } }
+    });
+
+    const monthlyBreakdown = MONTH_NAMES.map((name, index) => {
+      const monthAssignments = assignments.filter(a => new Date(a.inquiry.startDate).getMonth() === index);
+      const totalDays = monthAssignments.reduce((sum, a) => sum + (a.inquiry.totalDays || 0), 0);
+      const earnings = totalDays * Number(staff.perDayRate);
+      return {
+        month: name,
+        events: monthAssignments.length,
+        days: totalDays,
+        earnings
+      };
+    });
+
+    const totalEvents = assignments.length;
+    const totalDays = assignments.reduce((sum, a) => sum + (a.inquiry.totalDays || 0), 0);
+    const totalEarnings = totalDays * Number(staff.perDayRate);
+
+    res.json({
+      staffName: staff.name,
+      year: targetYear,
+      summary: {
+        totalEvents,
+        totalDays,
+        totalEarnings
+      },
+      monthlyBreakdown,
+      events: assignments.map(a => ({
+        id: a.inquiry.id,
+        inquiryNumber: a.inquiry.inquiryNumber,
+        eventName: a.inquiry.eventName,
+        startDate: a.inquiry.startDate,
+        endDate: a.inquiry.endDate,
+        days: a.inquiry.totalDays,
+        earnings: (a.inquiry.totalDays || 0) * Number(staff.perDayRate)
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching staff yearly history:', error);
+    res.status(500).json({ message: 'Error fetching history' });
+  }
+};
+
+export const getProfitabilityStats = async (req: Request, res: Response) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const where: any = {};
+    if (startDate && endDate) {
+      where.startDate = { gte: new Date(String(startDate)), lte: new Date(String(endDate)) };
+    }
+
+    const inquiries = await prisma.inquiry.findMany({
+      where: { ...where, deletedAt: null },
+      include: {
+        expenseReport: true,
+        quotations: {
+          where: { status: 'APPROVED' },
+          take: 1
+        }
+      }
+    });
+
+    const stats = inquiries.reduce((acc: any, inquiry) => {
+      const revenue = Number(inquiry.quotations[0]?.totalAmount || 0);
+      const expense = Number(inquiry.expenseReport?.totalExpenses || 0);
+      const profit = revenue - expense;
+
+      acc.totalRevenue += revenue;
+      acc.totalExpense += expense;
+      acc.totalProfit += profit;
+
+      const month = inquiry.startDate.toLocaleString('default', { month: 'short' });
+      if (!acc.monthly[month]) acc.monthly[month] = { revenue: 0, expense: 0, profit: 0 };
+      acc.monthly[month].revenue += revenue;
+      acc.monthly[month].expense += expense;
+      acc.monthly[month].profit += profit;
+
+      return acc;
+    }, { totalRevenue: 0, totalExpense: 0, totalProfit: 0, monthly: {} });
+
+    res.json({
+      summary: {
+        totalRevenue: stats.totalRevenue,
+        totalExpense: stats.totalExpense,
+        totalProfit: stats.totalProfit,
+        avgMargin: stats.totalRevenue > 0 ? (stats.totalProfit / stats.totalRevenue) * 100 : 0
+      },
+      chartData: Object.entries(stats.monthly).map(([name, data]: [string, any]) => ({
+        name,
+        ...data
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching profitability stats' });
+  }
+};

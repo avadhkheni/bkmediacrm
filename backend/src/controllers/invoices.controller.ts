@@ -25,7 +25,15 @@ export const getInvoices = async (req: Request, res: Response) => {
     if (inquiryId) whereClause.inquiryId = Number(inquiryId);
     const invoices = await prisma.invoice.findMany({
       where: whereClause,
-      include: { quotation: { select: { quotationNumber: true } }, payments: true },
+      include: { 
+        quotation: {
+          include: {
+            videoQuotationItems: true,
+            ledQuotationItems: true
+          }
+        }, 
+        payments: true 
+      },
       orderBy: { createdAt: 'desc' },
     });
     res.json(invoices);

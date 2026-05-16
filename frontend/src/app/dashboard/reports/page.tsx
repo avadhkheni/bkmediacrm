@@ -10,7 +10,7 @@ import { motion } from 'framer-motion';
 import {
   ClipboardList, CheckCircle2, Clock, XCircle, TrendingUp,
   CalendarDays, CalendarRange, Download, FileDown,
-  Eye, Users, CalendarCheck, Video, Monitor, UserCog,
+  Eye, Users, CalendarCheck, Video, Monitor, UserCog, History
 } from 'lucide-react';
 
 import ClientReport from './components/ClientReport';
@@ -18,6 +18,8 @@ import AvailabilityReport from './components/AvailabilityReport';
 import VideoReport from './components/VideoReport';
 import LedReport from './components/LedReport';
 import StaffReport from './components/StaffReport';
+import StaffYearlyHistory from './components/StaffYearlyHistory';
+import ProfitabilityReport from './components/ProfitabilityReport';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
@@ -28,6 +30,8 @@ const REPORT_TABS = [
   { key: 'video', label: 'Video Dept', icon: Video },
   { key: 'led', label: 'LED Dept', icon: Monitor },
   { key: 'staff', label: 'Staff & Users', icon: UserCog },
+  { key: 'staff-history', label: 'Staff History', icon: History },
+  { key: 'profitability', label: 'Profitability', icon: TrendingUp },
 ];
 
 // ─── INQUIRY REPORT (original, preserved) ────────────────
@@ -259,6 +263,8 @@ export default function ReportsPage() {
         {activeTab === 'video' && <VideoReport />}
         {activeTab === 'led' && <LedReport />}
         {activeTab === 'staff' && <StaffReport />}
+        {activeTab === 'staff-history' && <StaffYearlyHistory />}
+        {activeTab === 'profitability' && <ProfitabilityReport />}
       </div>
     </div>
   );

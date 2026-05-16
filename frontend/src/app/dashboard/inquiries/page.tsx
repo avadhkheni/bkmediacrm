@@ -100,7 +100,12 @@ export default function InquiriesPage() {
                       {new Date(inq.startDate).toLocaleDateString()} - {new Date(inq.endDate).toLocaleDateString()}
                     </td>
                     <td className="py-4 px-6 text-sm">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${inq.department === 'VIDEO' ? 'bg-purple-100 text-purple-800' : 'bg-orange-100 text-orange-800'}`}>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        inq.department === 'VIDEO' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400' : 
+                        inq.department === 'LED' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' : 
+                        inq.department === 'SOUND' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' : 
+                        'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
+                      }`}>
                         {inq.department}
                       </span>
                     </td>

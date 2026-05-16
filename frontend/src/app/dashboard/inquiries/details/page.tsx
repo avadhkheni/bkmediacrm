@@ -17,9 +17,15 @@ import {
   AlertCircle,
   History,
   FileText,
-  Download
+  Download,
+  HardDrive,
+  Speaker
 } from "lucide-react";
 import { generateInquiryPDF, generateQuotationPDF, generateInvoicePDF } from "@/lib/pdfGenerator";
+import DispatchTab from "./DispatchTab";
+import VideoDataSheetTab from "./VideoDataSheetTab";
+import SoundSetupTab from "./SoundSetupTab";
+import OfficeTasksTab from "./OfficeTasksTab";
 
 function InquiryDetailsContent() {
   const router = useRouter();
@@ -52,6 +58,31 @@ function InquiryDetailsContent() {
   }, [id]);
 
   const handleCreateInvoice = (q: any) => {
+    // Check readiness based on department
+    let isReady = true;
+    let message = "";
+
+    if (inquiry.department === 'VIDEO') {
+      const allDone = inquiry.videoDataSheets?.every((ds: any) => ds.isDayComplete);
+      if (!allDone) {
+        isReady = false;
+        message = "Warning: Not all Video Data Sheets are marked as complete. Proceed anyway?";
+      }
+    } else if (inquiry.department === 'OFFICE') {
+      const allDone = inquiry.officeTasks?.every((task: any) => task.readyForDelivery);
+      if (!allDone) {
+        isReady = false;
+        message = "Warning: Not all Office Tasks are marked as 'Ready for Delivery'. Proceed anyway?";
+      }
+    } else if (inquiry.department === 'SOUND') {
+      if (!inquiry.soundSetup?.soundCheckDone) {
+        isReady = false;
+        message = "Warning: Sound Check is not marked as complete. Proceed anyway?";
+      }
+    }
+
+    if (!isReady && !confirm(message)) return;
+
     router.push(`/dashboard/invoices/new?quotationId=${q.id}&inquiryId=${id}`);
   };
 
@@ -305,6 +336,44 @@ function InquiryDetailsContent() {
           >
             Workflows
           </button>
+          <button 
+            onClick={() => setActiveTab('dispatch')}
+            className={`px-6 py-4 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'dispatch' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700'
+            }`}
+          >
+            Dispatch & Logistics
+          </button>
+          {inquiry?.department === 'SOUND' && (
+            <button 
+              onClick={() => setActiveTab('sound-setup')}
+              className={`px-6 py-4 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
+                activeTab === 'sound-setup' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700'
+              }`}
+            >
+              <Speaker className="w-4 h-4" /> Sound Setup
+            </button>
+          )}
+          {inquiry?.department === 'VIDEO' && (
+            <button 
+              onClick={() => setActiveTab('data-sheet')}
+              className={`px-6 py-4 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
+                activeTab === 'data-sheet' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700'
+              }`}
+            >
+              <HardDrive className="w-4 h-4" /> Data Sheet
+            </button>
+          )}
+          {inquiry?.department === 'OFFICE' && (
+            <button 
+              onClick={() => setActiveTab('office-tasks')}
+              className={`px-6 py-4 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
+                activeTab === 'office-tasks' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700'
+              }`}
+            >
+              <Monitor className="w-4 h-4" /> Office Tasks
+            </button>
+          )}
         </div>
         
         <div className="p-6">
@@ -590,6 +659,18 @@ function InquiryDetailsContent() {
                 </div>
               </div>
             </div>
+          )}
+          {activeTab === 'dispatch' && (
+            <DispatchTab inquiryId={inquiry.id} department={inquiry.department} />
+          )}
+          {activeTab === 'sound-setup' && inquiry?.department === 'SOUND' && (
+            <SoundSetupTab inquiryId={inquiry.id} />
+          )}
+          {activeTab === 'data-sheet' && inquiry?.department === 'VIDEO' && (
+            <VideoDataSheetTab inquiryId={inquiry.id} />
+          )}
+          {activeTab === 'office-tasks' && inquiry?.department === 'OFFICE' && (
+            <OfficeTasksTab inquiryId={inquiry.id} />
           )}
         </div>
       </div>

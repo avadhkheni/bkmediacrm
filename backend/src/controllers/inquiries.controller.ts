@@ -119,12 +119,21 @@ export const getInquiryById = async (req: Request, res: Response) => {
       include: {
         client: true,
         quotations: {
-          include: { invoice: true }
+          include: { 
+            invoice: true,
+            videoQuotationItems: true,
+            ledQuotationItems: true
+          },
+          orderBy: { createdAt: 'desc' }
         },
         invoices: true,
         staffAssignments: {
           include: { staff: true }
-        }
+        },
+        officeTasks: true,
+        videoDataSheets: true,
+        soundSetup: true,
+        ledWarehouseAllocations: true
       }
     });
 

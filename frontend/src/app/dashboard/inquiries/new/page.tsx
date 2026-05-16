@@ -261,6 +261,8 @@ export default function NewInquiryPage() {
               >
                 <option value="VIDEO">Video & Photography</option>
                 <option value="LED">LED Screens</option>
+                <option value="SOUND">Sound Systems</option>
+                <option value="OFFICE">Office & Editing</option>
               </select>
             </div>
 
@@ -280,8 +282,15 @@ export default function NewInquiryPage() {
                 <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                 <input 
                   type="date" 
-                  {...register("startDate", { required: "Start date is required" })}
-                  className={`w-full pl-10 pr-4 py-2 rounded-md border ${errors.startDate ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'} bg-white dark:bg-slate-700 text-slate-900 dark:text-white`}
+                  {...register("startDate", { 
+                    required: "Start date is required",
+                    validate: (value) => {
+                      const d = new Date(value);
+                      if (isNaN(d.getTime())) return "Invalid date";
+                      return true;
+                    }
+                  })}
+                  className={`w-full pl-10 pr-4 py-2 rounded-md border ${errors.startDate ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'} bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all`}
                 />
               </div>
               {errors.startDate && <p className="text-xs text-red-500 mt-1">{errors.startDate.message}</p>}
@@ -297,10 +306,14 @@ export default function NewInquiryPage() {
                     required: "End date is required",
                     validate: (value) => {
                       if (!startDate) return true;
-                      return new Date(value) >= new Date(startDate) || "End date cannot be before start date";
+                      const start = new Date(startDate);
+                      const end = new Date(value);
+                      if (isNaN(end.getTime())) return "Invalid date";
+                      if (end < start) return "End date cannot be before start date";
+                      return true;
                     }
                   })}
-                  className={`w-full pl-10 pr-4 py-2 rounded-md border ${errors.endDate ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'} bg-white dark:bg-slate-700 text-slate-900 dark:text-white`}
+                  className={`w-full pl-10 pr-4 py-2 rounded-md border ${errors.endDate ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'} bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all`}
                 />
               </div>
               {errors.endDate && <p className="text-xs text-red-500 mt-1">{errors.endDate.message}</p>}

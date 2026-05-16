@@ -172,12 +172,13 @@ export const generateInquiryPDF = (inquiry: any) => {
 
     // Show Latest Quotation Items if any
     const latestQ = inquiry.quotations.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-    if (latestQ && latestQ.items) {
+    const latestQItems = latestQ?.videoQuotationItems || latestQ?.ledQuotationItems || latestQ?.soundQuotationItems || latestQ?.items;
+    if (latestQItems && latestQItems.length > 0) {
       const startY = (doc as any).lastAutoTable.finalY + 15;
       doc.setFontSize(11);
       doc.text(`LATEST QUOTATION ITEMS (${latestQ.quotationNumber})`, 15, startY);
       
-      const itemData = latestQ.items.map((item: any) => [
+      const itemData = latestQItems.map((item: any) => [
         item.placeName || '-',
         item.equipmentType || item.ledType || '-',
         item.nos || 1,
@@ -238,34 +239,44 @@ export const generateQuotationPDF = (quotation: any, inquiry: any) => {
   doc.text(`Duration: ${new Date(inquiry.startDate).toLocaleDateString()} - ${new Date(inquiry.endDate).toLocaleDateString()}`, pageWidth / 2 + 5, 89);
 
   // Items Table
-  const items = quotation.videoQuotationItems || quotation.ledQuotationItems || quotation.items;
-  if (items && items.length > 0) {
-    const isVideo = inquiry.department === 'VIDEO';
-    
-    const head = isVideo 
-      ? [['Place Name', 'Equipment', 'Qty', 'Days', 'Rate', 'Total']]
-      : [['Place Name', 'LED Type', 'W(ft)', 'H(ft)', 'Qty', 'Rate/sqft', 'Days', 'Total']];
+  const videoItems = (quotation.videoQuotationItems || []).map((it: any) => ({ ...it, category: 'VIDEO' }));
+  const ledItems = (quotation.ledQuotationItems || []).map((it: any) => ({ ...it, category: 'LED' }));
+  const soundItems = (quotation.soundQuotationItems || []).map((it: any) => ({ ...it, category: 'SOUND' }));
+  const officeItems = (quotation.officeQuotationItems || []).map((it: any) => ({ ...it, category: 'OFFICE' }));
+  
+  const allItems = [...videoItems, ...ledItems, ...soundItems, ...officeItems];
 
-    const tableData = items.map((item: any) => {
-      if (isVideo) {
+  if (allItems.length > 0) {
+    const head = [['Place/Service', 'Details', 'Qty', 'Days', 'Rate', 'Total']];
+
+    const tableData = allItems.map((item: any) => {
+      if (item.category === 'VIDEO' || item.category === 'SOUND') {
         return [
           item.placeName || '-',
           item.equipmentType || 'Service',
-          item.nos || 1,
-          item.days || 1,
-          formatCurrency(item.ratePerDay || item.rate || 0),
-          formatCurrency(item.totalAmount)
+          Number(item.nos || 1),
+          Number(item.days || 1),
+          formatCurrency(Number(item.ratePerDay || 0)),
+          formatCurrency(Number(item.totalAmount || 0))
         ];
-      } else {
+      } else if (item.category === 'LED') {
         return [
           item.placeName || '-',
-          item.ledType || 'LED Screen',
-          item.widthFt || 0,
-          item.heightFt || 0,
-          item.nos || 1,
-          formatCurrency(item.ratePerSqft || 0),
-          item.days || 1,
-          formatCurrency(item.totalAmount)
+          `${item.ledType || 'LED'} (${item.widthFt}x${item.heightFt} ft)`,
+          Number(item.nos || 1),
+          Number(item.days || 1),
+          `${formatCurrency(Number(item.ratePerSqft || 0))}/sqft`,
+          formatCurrency(Number(item.totalAmount || 0))
+        ];
+      } else {
+        // OFFICE
+        return [
+          item.placeName || item.serviceName || 'Service',
+          item.description || '-',
+          Number(item.quantity || 1),
+          Number(item.days || 1),
+          formatCurrency(Number(item.rate || 0)),
+          formatCurrency(Number(item.totalAmount || 0))
         ];
       }
     });
@@ -374,35 +385,47 @@ export const generateInvoicePDF = (invoice: any) => {
   doc.text(`Period: ${invoice?.inquiry?.startDate ? new Date(invoice.inquiry.startDate).toLocaleDateString() : 'N/A'} to ${invoice?.inquiry?.endDate ? new Date(invoice.inquiry.endDate).toLocaleDateString() : 'N/A'}`, pageWidth / 2 + 5, 89);
 
   // Items Table
-  const items = invoice?.quotation?.videoQuotationItems || invoice?.quotation?.ledQuotationItems || invoice?.quotation?.items || invoice?.items || [];
-  if (items.length > 0) {
-    const isVideo = (invoice?.inquiry?.department || invoice?.quotation?.inquiry?.department) === 'VIDEO';
-    const head = isVideo 
-      ? [['Place Name', 'Equipment', 'HSN/SAC', 'Qty', 'Days', 'Rate', 'Total']]
-      : [['Place Name', 'LED Type', 'HSN/SAC', 'W(ft)', 'H(ft)', 'Qty', 'Rate/sqft', 'Days', 'Total']];
+  const videoItems = (invoice?.quotation?.videoQuotationItems || []).map((it: any) => ({ ...it, category: 'VIDEO' }));
+  const ledItems = (invoice?.quotation?.ledQuotationItems || []).map((it: any) => ({ ...it, category: 'LED' }));
+  const soundItems = (invoice?.quotation?.soundQuotationItems || []).map((it: any) => ({ ...it, category: 'SOUND' }));
+  const officeItems = (invoice?.quotation?.officeQuotationItems || []).map((it: any) => ({ ...it, category: 'OFFICE' }));
+  
+  const allItems = [...videoItems, ...ledItems, ...soundItems, ...officeItems];
 
-    const tableData = items.map((item: any) => {
-      if (isVideo) {
+  if (allItems.length > 0) {
+    const head = [['Place/Service', 'Details', 'HSN/SAC', 'Qty', 'Days', 'Rate', 'Total']];
+
+    const tableData = allItems.map((item: any) => {
+      if (item.category === 'VIDEO' || item.category === 'SOUND') {
         return [
           item.placeName || '-',
           item.equipmentType || 'Service',
           '9987',
-          item.nos || 1,
-          item.days || 1,
-          formatCurrency(item.ratePerDay || 0),
-          formatCurrency(item.totalAmount)
+          Number(item.nos || 1),
+          Number(item.days || 1),
+          formatCurrency(Number(item.ratePerDay || 0)),
+          formatCurrency(Number(item.totalAmount || 0))
         ];
-      } else {
+      } else if (item.category === 'LED') {
         return [
           item.placeName || '-',
-          item.ledType || 'LED',
+          `${item.ledType || 'LED'} (${item.widthFt}x${item.heightFt} ft)`,
           '9987',
-          item.widthFt || 0,
-          item.heightFt || 0,
-          item.nos || 1,
-          formatCurrency(item.ratePerSqft || 0),
-          item.days || 1,
-          formatCurrency(item.totalAmount)
+          Number(item.nos || 1),
+          Number(item.days || 1),
+          `${formatCurrency(Number(item.ratePerSqft || 0))}/sqft`,
+          formatCurrency(Number(item.totalAmount || 0))
+        ];
+      } else {
+        // OFFICE
+        return [
+          item.placeName || item.serviceName || 'Service',
+          item.description || '-',
+          '9987',
+          Number(item.quantity || 1),
+          Number(item.days || 1),
+          formatCurrency(Number(item.rate || 0)),
+          formatCurrency(Number(item.totalAmount || 0))
         ];
       }
     });

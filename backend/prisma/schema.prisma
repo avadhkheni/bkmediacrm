@@ -89,6 +89,9 @@ model Inquiry {
   ledScreenStatuses     LedScreenStatus[]
   ledEventIssues        LedEventIssue[]
   dispatchStaffAssignments DispatchStaffAssignment[]
+  soundEventBookings    SoundEventBooking[]
+  officeTasks           OfficeTask[]
+  soundSetup            SoundSetup?
 }
 
 // ─── QUOTATIONS ─────────────────────────────────────────
@@ -117,6 +120,8 @@ model Quotation {
 
   videoQuotationItems VideoQuotationItem[]
   ledQuotationItems   LedQuotationItem[]
+  soundQuotationItems SoundQuotationItem[]
+  officeQuotationItems OfficeQuotationItem[]
   invoice             Invoice?
 }
 
@@ -179,6 +184,7 @@ model Staff {
   user         User?
   assignments  EventStaffAssignment[]
   dispatchAssignments DispatchStaffAssignment[]
+  officeTasks         OfficeTask[] @relation("StaffTasks")
 }
 
 model EventStaffAssignment {
@@ -355,6 +361,97 @@ model VideoDataSheetEntry {
   notes          String?
 }
 
+// ─── SOUND DEPARTMENT ───────────────────────────────────
+
+model SoundQuotationItem {
+  id            Int       @id @default(autoincrement())
+  quotationId   Int
+  quotation     Quotation @relation(fields: [quotationId], references: [id])
+  placeName     String
+  position      String?
+  equipmentType String
+  ratePerDay    Decimal
+  days          Int
+  totalAmount   Decimal
+  sortOrder     Int       @default(0)
+}
+
+model OfficeQuotationItem {
+  id            Int       @id @default(autoincrement())
+  quotationId   Int
+  quotation     Quotation @relation(fields: [quotationId], references: [id])
+  serviceName   String
+  description   String?
+  rate          Decimal
+  quantity      Int       @default(1)
+  days          Int       @default(1)
+  totalAmount   Decimal
+  sortOrder     Int       @default(0)
+}
+
+model SoundEquipment {
+  id                  Int       @id @default(autoincrement())
+  name                String
+  category            String    // Speakers, Mixers, Amplifiers, Microphones, Cables
+  brand               String?
+  model               String?
+  serialNumber        String?
+  totalQuantity       Int       @default(1)
+  availableQuantity   Int       @default(1)
+  inUseQuantity       Int       @default(0)
+  maintenanceQuantity Int       @default(0)
+  ratePerDay          Decimal?
+  status              String    @default("AVAILABLE")
+  notes               String?
+  createdAt           DateTime  @default(now())
+  deletedAt           DateTime?
+
+  warehouseId         Int?
+  warehouse           Warehouse? @relation(fields: [warehouseId], references: [id])
+
+  bookings            SoundEventBooking[]
+  movements           StockMovement[]
+}
+
+model SoundEventBooking {
+  id            Int            @id @default(autoincrement())
+  inquiryId     Int
+  inquiry       Inquiry        @relation(fields: [inquiryId], references: [id])
+  equipmentId   Int
+  equipment     SoundEquipment @relation(fields: [equipmentId], references: [id])
+  position      String?
+  bookedFrom    DateTime
+  bookedTo      DateTime
+  status        String         @default("BOOKED")
+  vendorId      Int?
+  vendorCost    Decimal?
+  confirmedById Int?
+  confirmedAt   DateTime?
+}
+
+model SoundSetup {
+  id              Int      @id @default(autoincrement())
+  inquiryId       Int      @unique
+  inquiry         Inquiry  @relation(fields: [inquiryId], references: [id])
+  stageSize       String?  // e.g. 40x30
+  audienceSize    Int?     // e.g. 500
+  eventType       String?  // e.g. Concert, Wedding, Seminar
+  powerRequiredKw Decimal  @default(0)
+  venueType       String?  // INDOOR | OUTDOOR
+  paSystemType    String?  // LINE_ARRAY | POINT_SOURCE
+  monitorCount    Int      @default(0)
+  wirelessMicCount Int     @default(0)
+  totalWattage    Int      @default(0)
+  
+  // Setup Workflow
+  riggingDone     Boolean  @default(false)
+  paTuned         Boolean  @default(false)
+  soundCheckDone  Boolean  @default(false)
+  
+  notes           String?
+  updatedAt       DateTime @updatedAt
+}
+
 // ─── LED DEPARTMENT ─────────────────────────────────────
 
 model LedStock {
@@ -486,6 +583,7 @@ model Warehouse {
 
   videoStock  VideoEquipment[]
   ledStock    LedStock[]
+  soundStock  SoundEquipment[]
   movements   StockMovement[]
 }
 
@@ -498,6 +596,8 @@ model StockMovement {
   videoEquipment  VideoEquipment? @relation(fields: [videoEquipId], references: [id])
   ledStockId      Int?
   ledStock        LedStock? @relation(fields: [ledStockId], references: [id])
+  soundEquipId    Int?
+  soundEquipment  SoundEquipment? @relation(fields: [soundEquipId], references: [id])
   
   action          String   // ADDED, SENT_TO_ORDER, RETURNED, DAMAGED, MISSING, ADJUSTED
   quantity        Int
@@ -527,3 +627,30 @@ model ChecklistItem {
   isPassed        Boolean  @default(false)
   notes           String?
 }
+
+// ─── OFFICE DEPARTMENT (IN-HOUSE) ────────────────────────
+
+model OfficeTask {
+  id             Int       @id @default(autoincrement())
+  inquiryId      Int?
+  inquiry        Inquiry?  @relation(fields: [inquiryId], references: [id])
+  title          String
+  description    String?
+  subDepartment  String    // VIDEO_EDITING | GRAPHIC_DESIGN | SOCIAL_MEDIA
+  priority       String    @default("MEDIUM") // LOW | MEDIUM | HIGH | URGENT
+  status         String    @default("NOT_STARTED") // NOT_STARTED | IN_PROGRESS | REVIEW | COMPLETED
+  deadline       DateTime?
+  assignedStaffId Int?
+  assignedStaff  Staff?    @relation("StaffTasks", fields: [assignedStaffId], references: [id])
+  
+  // Delivery Workflow fields
+  rawFootageRecv Boolean   @default(false)
+  editingStarted Boolean   @default(false)
+  reviewDone     Boolean   @default(false)
+  readyForDelivery Boolean @default(false)
+  
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+

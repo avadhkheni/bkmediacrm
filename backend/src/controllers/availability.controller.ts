@@ -112,7 +112,42 @@ export const getVideoEquipmentAvailabilityController = async (req: Request, res:
 
     res.json(availability);
   } catch (error) {
-    console.error('Error fetching video equipment availability:', error);
+    res.status(500).json({ message: 'Error fetching availability' });
+  }
+};
+
+export const getSoundEquipmentAvailabilityController = async (req: Request, res: Response) => {
+  try {
+    const { startDate, endDate } = req.query;
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: 'Start and end dates are required' });
+    }
+
+    const start = new Date(String(startDate));
+    const end = new Date(String(endDate));
+
+    const equipment = await prisma.soundEquipment.findMany({
+      where: { deletedAt: null },
+      include: {
+        bookings: {
+          where: {
+            OR: [
+              { bookedFrom: { lte: end }, bookedTo: { gte: start } }
+            ]
+          }
+        }
+      }
+    });
+
+    const availability = equipment.map(e => ({
+      ...e,
+      isAvailable: e.bookings.length === 0,
+      bookedEvents: e.bookings.length
+    }));
+
+    res.json(availability);
+  } catch (error) {
+    console.error('Error fetching sound equipment availability:', error);
     res.status(500).json({ message: 'Error fetching availability' });
   }
 };

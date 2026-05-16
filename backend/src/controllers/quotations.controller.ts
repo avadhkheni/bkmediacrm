@@ -67,6 +67,16 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
         if (!item.days || Number(item.days) <= 0) {
           return res.status(400).json({ message: `Item ${i + 1}: Days must be at least 1` });
         }
+      } else if (inquiry.department === 'SOUND') {
+        if (!item.equipmentType || item.equipmentType.trim() === '') {
+          return res.status(400).json({ message: `Item ${i + 1}: Equipment type is required` });
+        }
+        if (!item.ratePerDay || Number(item.ratePerDay) <= 0) {
+          return res.status(400).json({ message: `Item ${i + 1}: Rate per day must be greater than 0` });
+        }
+        if (!item.days || Number(item.days) <= 0) {
+          return res.status(400).json({ message: `Item ${i + 1}: Days must be at least 1` });
+        }
       }
     }
 
@@ -92,8 +102,10 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
         }
       });
 
-      if (inquiry.department === 'VIDEO') {
-        for (const item of items) {
+      for (const item of items) {
+        const category = item.category || inquiry.department;
+        
+        if (category === 'VIDEO') {
           await tx.videoQuotationItem.create({
             data: {
               quotationId: q.id,
@@ -105,9 +117,7 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
               totalAmount: Number(item.ratePerDay) * Number(item.days)
             }
           });
-        }
-      } else if (inquiry.department === 'LED') {
-        for (const item of items) {
+        } else if (category === 'LED') {
           const sqftPerDay = Number(item.heightFt) * Number(item.widthFt) * Number(item.nos || 1);
           const totalAmount = sqftPerDay * Number(item.ratePerSqft) * Number(item.days);
           await tx.ledQuotationItem.create({
@@ -123,6 +133,30 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
               ratePerSqft: Number(item.ratePerSqft),
               days: Number(item.days),
               totalAmount
+            }
+          });
+        } else if (category === 'SOUND') {
+          await tx.soundQuotationItem.create({
+            data: {
+              quotationId: q.id,
+              placeName: item.placeName || 'Default',
+              position: item.position || '',
+              equipmentType: item.equipmentType,
+              ratePerDay: Number(item.ratePerDay),
+              days: Number(item.days),
+              totalAmount: Number(item.ratePerDay) * Number(item.days)
+            }
+          });
+        } else if (category === 'OFFICE') {
+          await tx.officeQuotationItem.create({
+            data: {
+              quotationId: q.id,
+              serviceName: item.equipmentType || item.placeName,
+              description: item.notes || '',
+              rate: Number(item.ratePerDay || item.rate || 0),
+              quantity: Number(item.nos || 1),
+              days: Number(item.days || 1),
+              totalAmount: Number(item.ratePerDay || item.rate || 0) * Number(item.nos || 1) * Number(item.days || 1)
             }
           });
         }
@@ -150,7 +184,9 @@ export const getQuotationsByInquiry = async (req: Request, res: Response) => {
       where: { inquiryId: Number(inquiryId) },
       include: {
         videoQuotationItems: true,
-        ledQuotationItems: true
+        ledQuotationItems: true,
+        soundQuotationItems: true,
+        officeQuotationItems: true
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -171,7 +207,9 @@ export const getQuotationById = async (req: Request, res: Response) => {
           include: { client: true }
         },
         videoQuotationItems: true,
-        ledQuotationItems: true
+        ledQuotationItems: true,
+        soundQuotationItems: true,
+        officeQuotationItems: true
       }
     });
     
@@ -215,9 +253,13 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
         
         await tx.videoQuotationItem.deleteMany({ where: { quotationId: q.id } });
         await tx.ledQuotationItem.deleteMany({ where: { quotationId: q.id } });
+        await tx.soundQuotationItem.deleteMany({ where: { quotationId: q.id } });
+        await tx.officeQuotationItem.deleteMany({ where: { quotationId: q.id } });
 
-        if (inquiry?.department === 'VIDEO') {
-          for (const item of items) {
+        for (const item of items) {
+          const category = item.category || inquiry?.department;
+          
+          if (category === 'VIDEO') {
             await tx.videoQuotationItem.create({
               data: {
                 quotationId: q.id,
@@ -229,9 +271,7 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
                 totalAmount: Number(item.ratePerDay) * Number(item.days)
               }
             });
-          }
-        } else if (inquiry?.department === 'LED') {
-          for (const item of items) {
+          } else if (category === 'LED') {
             const sqftPerDay = Number(item.heightFt) * Number(item.widthFt) * Number(item.nos || 1);
             const totalAmount = sqftPerDay * Number(item.ratePerSqft) * Number(item.days);
             await tx.ledQuotationItem.create({
@@ -247,6 +287,30 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
                 ratePerSqft: Number(item.ratePerSqft),
                 days: Number(item.days),
                 totalAmount
+              }
+            });
+          } else if (category === 'SOUND') {
+            await tx.soundQuotationItem.create({
+              data: {
+                quotationId: q.id,
+                placeName: item.placeName || 'Default',
+                position: item.position || '',
+                equipmentType: item.equipmentType,
+                ratePerDay: Number(item.ratePerDay),
+                days: Number(item.days),
+                totalAmount: Number(item.ratePerDay) * Number(item.days)
+              }
+            });
+          } else if (category === 'OFFICE') {
+            await tx.officeQuotationItem.create({
+              data: {
+                quotationId: q.id,
+                serviceName: item.equipmentType || item.placeName,
+                description: item.notes || '',
+                rate: Number(item.ratePerDay || item.rate || 0),
+                quantity: Number(item.nos || 1),
+                days: Number(item.days || 1),
+                totalAmount: Number(item.ratePerDay || item.rate || 0) * Number(item.nos || 1) * Number(item.days || 1)
               }
             });
           }
@@ -281,7 +345,7 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
 
       return tx.quotation.findUnique({
         where: { id: q.id },
-        include: { videoQuotationItems: true, ledQuotationItems: true }
+        include: { videoQuotationItems: true, ledQuotationItems: true, soundQuotationItems: true }
       });
     });
 
@@ -299,7 +363,7 @@ export const reviseQuotation = async (req: AuthRequest, res: Response) => {
 
     const existing = await prisma.quotation.findUnique({
       where: { id: Number(id) },
-      include: { videoQuotationItems: true, ledQuotationItems: true }
+      include: { videoQuotationItems: true, ledQuotationItems: true, soundQuotationItems: true }
     });
     if (!existing) return res.status(404).json({ message: 'Quotation not found' });
 
@@ -334,10 +398,12 @@ export const reviseQuotation = async (req: AuthRequest, res: Response) => {
 
       // Copy/create items
       const inquiry = await tx.inquiry.findUnique({ where: { id: q.inquiryId } });
-      const itemsToCreate = items || (inquiry?.department === 'VIDEO' ? existing.videoQuotationItems : existing.ledQuotationItems);
+      const itemsToCreate = items || (inquiry?.department === 'VIDEO' ? existing.videoQuotationItems : (inquiry?.department === 'LED' ? existing.ledQuotationItems : existing.soundQuotationItems));
 
-      if (inquiry?.department === 'VIDEO') {
-        for (const item of itemsToCreate) {
+      for (const item of itemsToCreate) {
+        const category = item.category || inquiry?.department;
+        
+        if (category === 'VIDEO') {
           await tx.videoQuotationItem.create({
             data: {
               quotationId: q.id,
@@ -349,9 +415,7 @@ export const reviseQuotation = async (req: AuthRequest, res: Response) => {
               totalAmount: Number(item.ratePerDay) * Number(item.days)
             }
           });
-        }
-      } else if (inquiry?.department === 'LED') {
-        for (const item of itemsToCreate) {
+        } else if (category === 'LED') {
           const sqftPerDay = Number(item.heightFt) * Number(item.widthFt) * Number(item.nos || 1);
           const totalAmount = sqftPerDay * Number(item.ratePerSqft) * Number(item.days);
           await tx.ledQuotationItem.create({
@@ -367,6 +431,30 @@ export const reviseQuotation = async (req: AuthRequest, res: Response) => {
               ratePerSqft: Number(item.ratePerSqft),
               days: Number(item.days),
               totalAmount
+            }
+          });
+        } else if (category === 'SOUND') {
+          await tx.soundQuotationItem.create({
+            data: {
+              quotationId: q.id,
+              placeName: item.placeName || 'Default',
+              position: item.position || '',
+              equipmentType: item.equipmentType,
+              ratePerDay: Number(item.ratePerDay),
+              days: Number(item.days),
+              totalAmount: Number(item.ratePerDay) * Number(item.days)
+            }
+          });
+        } else if (category === 'OFFICE') {
+          await tx.officeQuotationItem.create({
+            data: {
+              quotationId: q.id,
+              serviceName: item.equipmentType || item.placeName,
+              description: item.notes || '',
+              rate: Number(item.ratePerDay || item.rate || 0),
+              quantity: Number(item.nos || 1),
+              days: Number(item.days || 1),
+              totalAmount: Number(item.ratePerDay || item.rate || 0) * Number(item.nos || 1) * Number(item.days || 1)
             }
           });
         }

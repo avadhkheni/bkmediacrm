@@ -91,3 +91,63 @@ export const deleteDispatchStaff = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Error deleting dispatch staff assignment' });
   }
 };
+
+// GET /dispatch/led-boxes?inquiryId=
+export const getLedDispatchBoxes = async (req: Request, res: Response) => {
+  try {
+    const { inquiryId } = req.query;
+    const whereClause: any = {};
+    if (inquiryId) whereClause.inquiryId = Number(inquiryId);
+
+    const boxes = await prisma.ledDispatchBoxEntry.findMany({
+      where: whereClause,
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(boxes);
+  } catch (error) {
+    console.error('Error fetching LED dispatch boxes:', error);
+    res.status(500).json({ message: 'Error fetching LED dispatch boxes' });
+  }
+};
+
+// POST /dispatch/led-boxes
+export const createLedDispatchBox = async (req: Request, res: Response) => {
+  try {
+    const { inquiryId, vehicleName, vehicleNumber, companyName, numBoxes, cabinetsPerBox } = req.body;
+
+    if (!inquiryId || !vehicleName || !companyName || !numBoxes || !cabinetsPerBox) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    const totalCabinets = Number(numBoxes) * Number(cabinetsPerBox);
+
+    const boxEntry = await prisma.ledDispatchBoxEntry.create({
+      data: {
+        inquiryId: Number(inquiryId),
+        vehicleName,
+        vehicleNumber: vehicleNumber || null,
+        companyName,
+        numBoxes: Number(numBoxes),
+        cabinetsPerBox: Number(cabinetsPerBox),
+        totalCabinets,
+      },
+    });
+
+    res.status(201).json(boxEntry);
+  } catch (error) {
+    console.error('Error creating LED dispatch box:', error);
+    res.status(500).json({ message: 'Error creating LED dispatch box' });
+  }
+};
+
+// DELETE /dispatch/led-boxes/:id
+export const deleteLedDispatchBox = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await prisma.ledDispatchBoxEntry.delete({ where: { id: Number(id) } });
+    res.json({ message: 'LED dispatch box deleted' });
+  } catch (error) {
+    console.error('Error deleting LED dispatch box:', error);
+    res.status(500).json({ message: 'Error deleting LED dispatch box' });
+  }
+};

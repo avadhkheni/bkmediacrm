@@ -12,5 +12,7 @@ router.get('/availability-report', authenticate, AnalyticsController.getAvailabi
 router.get('/video', authenticate, AnalyticsController.getVideoAnalytics);
 router.get('/led', authenticate, AnalyticsController.getLedAnalytics);
 router.get('/staff', authenticate, AnalyticsController.getStaffAnalytics);
+router.get('/staff-yearly-history', authenticate, AnalyticsController.getStaffYearlyHistory);
+router.get('/profitability', authenticate, AnalyticsController.getProfitabilityStats);
 
 export default router;

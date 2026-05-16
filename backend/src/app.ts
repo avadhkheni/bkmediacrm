@@ -19,6 +19,7 @@ import clientsRoutes from './routes/clients.routes';
 import inquiriesRoutes from './routes/inquiries.routes';
 import videoRoutes from './routes/video.routes';
 import ledRoutes from './routes/led.routes';
+import soundRoutes from './routes/sound.routes';
 import availabilityRoutes from './routes/availability.routes';
 import staffRoutes from './routes/staff.routes';
 import quotationsRoutes from './routes/quotations.routes';
@@ -31,6 +32,7 @@ import pdfRoutes from './routes/pdf.routes';
 import notificationsRoutes from './routes/notifications.routes';
 import analyticsRoutes from './routes/analytics.routes';
 import warehouseRoutes from './routes/warehouse.routes';
+import officeRoutes from './routes/office.routes';
 
 // Test Route
 app.get('/api/v1/health', (req, res) => {
@@ -44,6 +46,7 @@ app.use('/api/v1/clients', clientsRoutes);
 app.use('/api/v1/inquiries', inquiriesRoutes);
 app.use('/api/v1/video', videoRoutes);
 app.use('/api/v1/led', ledRoutes);
+app.use('/api/v1/sound', soundRoutes);
 app.use('/api/v1/availability', availabilityRoutes);
 app.use('/api/v1/staff', staffRoutes);
 app.use('/api/v1/quotations', quotationsRoutes);
@@ -56,5 +59,6 @@ app.use('/api/v1/pdf', pdfRoutes);
 app.use('/api/v1/notifications', notificationsRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1/warehouse', warehouseRoutes);
+app.use('/api/v1/office', officeRoutes);
 
 export default app;

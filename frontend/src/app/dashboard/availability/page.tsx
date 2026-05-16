@@ -9,7 +9,8 @@ import {
   Camera, 
   Settings,
   Calendar,
-  ChevronRight
+  ChevronRight,
+  Speaker
 } from "lucide-react";
 
 export default function AvailabilityPage() {
@@ -19,16 +20,18 @@ export default function AvailabilityPage() {
   const [videoFilter, setVideoFilter] = useState("All");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [soundFilter, setSoundFilter] = useState("All");
 
   useEffect(() => {
     const fetchAvailability = async () => {
       try {
         const today = new Date().toISOString().split('T')[0];
         // Fetch each section separately for the new API
-        const [staffRes, ledRes, videoRes] = await Promise.all([
+        const [staffRes, ledRes, videoRes, soundRes] = await Promise.all([
           api.get(`/availability/staff?startDate=${startDate || today}&endDate=${endDate || today}`),
           api.get(`/availability/led?startDate=${startDate || today}&endDate=${endDate || today}`),
           api.get(`/availability/video-equipment?startDate=${startDate || today}&endDate=${endDate || today}`),
+          api.get(`/availability/sound-equipment?startDate=${startDate || today}&endDate=${endDate || today}`),
         ]);
         setData({
           summary: {
@@ -44,6 +47,7 @@ export default function AvailabilityPage() {
             staff: staffRes.data,
             led: ledRes.data,
             video: videoRes.data,
+            sound: soundRes.data,
           }
         });
       } catch (error) {
@@ -72,6 +76,14 @@ export default function AvailabilityPage() {
     { label: "Editing", value: "EDITING_SYSTEM" },
   ];
 
+  const soundCategories = [
+    { label: "All", value: "All" },
+    { label: "Speakers", value: "Speakers" },
+    { label: "Mixers", value: "Mixers" },
+    { label: "Microphones", value: "Microphones" },
+    { label: "Amps", value: "Amplifiers" },
+  ];
+
   if (loading) return <div className="p-8 text-gray-500 dark:text-slate-400">Loading availability dashboard...</div>;
 
   return (
@@ -79,9 +91,20 @@ export default function AvailabilityPage() {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Availability Dashboard</h2>
         <div className="flex gap-2 items-center">
-          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="px-3 py-1.5 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm" />
-          <span className="text-slate-500 dark:text-slate-400">to</span>
-          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="px-3 py-1.5 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm" />
+          <input 
+            type="date" 
+            value={startDate} 
+            onChange={e => setStartDate(e.target.value)} 
+            className="px-3 py-1.5 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm" 
+          />
+          <span className="text-slate-500 dark:text-slate-400 font-bold">→</span>
+          <input 
+            type="date" 
+            min={startDate}
+            value={endDate} 
+            onChange={e => setEndDate(e.target.value)} 
+            className="px-3 py-1.5 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm" 
+          />
         </div>
       </div>
 
@@ -264,7 +287,93 @@ export default function AvailabilityPage() {
             )}
           </div>
         </div>
-      </div>
+
+        {/* Sound Equipment */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-gray-100 dark:border-slate-700 transition-colors">
+          <div className="flex items-center gap-2 mb-4">
+            <Speaker className="w-5 h-5 text-gray-600 dark:text-slate-300" strokeWidth={1.75} />
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">Sound equipment availability</h2>
+          </div>
+
+          <div className="flex flex-wrap gap-2 mb-6">
+            {soundCategories.map(cat => (
+              <button 
+                key={cat.value}
+                onClick={() => setSoundFilter(cat.value)}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                  soundFilter === cat.value 
+                  ? "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400" 
+                  : "bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-600 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700"
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-3">
+            {data?.details.sound
+              ?.filter((s:any) => soundFilter === "All" || s.category === soundFilter)
+              .map((s: any) => (
+              <div key={s.id} className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded bg-gray-50 dark:bg-slate-700 border border-gray-100 dark:border-slate-600 flex items-center justify-center">
+                    <Speaker className="w-4 h-4 text-gray-400 dark:text-slate-400" strokeWidth={1.75} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{s.name}</h4>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 capitalize">{s.category}</p>
+                  </div>
+                </div>
+                <div>
+                  {s.isAvailable ? (
+                    <span className="inline-flex px-3 py-1 bg-[#e6f4ea] dark:bg-green-900/30 text-[#137333] dark:text-green-400 rounded-md text-xs font-semibold tracking-wide">
+                      Free
+                    </span>
+                  ) : (
+                    <span className="inline-flex px-3 py-1 bg-[#fce8e6] dark:bg-red-900/30 text-[#c5221f] dark:text-red-400 rounded-md text-xs font-semibold tracking-wide">
+                      Booked ({s.bookedEvents})
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+            {data?.details.sound?.length === 0 && (
+              <p className="text-sm text-gray-500 dark:text-slate-400">No equipment found.</p>
+            )}
+          </div>
+        </div>
+
+        {/* Office & Editing Tasks */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-gray-100 dark:border-slate-700 transition-colors">
+          <div className="flex items-center gap-2 mb-4">
+            <Monitor className="w-5 h-5 text-gray-600 dark:text-slate-300" strokeWidth={1.75} />
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">Office & Editing Load</h2>
+          </div>
+          <div className="space-y-4">
+             {/* This would ideally fetch from a new endpoint, but for now we can show a placeholder or summary */}
+             <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+               <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
+                 Office task tracking is integrated with In-house Staff availability on the left.
+               </p>
+             </div>
+             <div className="grid grid-cols-2 gap-3">
+               <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
+                 <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Active Projects</p>
+                 <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300">
+                    {data?.details.staff.filter((s:any) => s.department === 'OFFICE' && s.status === 'BUSY').length || 0}
+                 </p>
+               </div>
+               <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                 <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1">Editing Systems</p>
+                 <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
+                    {data?.details.video.filter((v:any) => v.category === 'EDITING_SYSTEM' && v.status === 'AVAILABLE').length || 0} Free
+                 </p>
+               </div>
+             </div>
+          </div>
+        </div>
+        </div>
       </div>
     </div>
   );
