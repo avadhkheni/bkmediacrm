@@ -109,8 +109,8 @@ export default function VendorSection({ department }: VendorSectionProps) {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-bold text-slate-800 dark:text-white">External Vendors</h3>
-          <p className="text-sm text-slate-500">Manage third-party equipment and service providers for {department}</p>
+          <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Outside Suppliers / Rentals</h3>
+          <p className="text-sm text-slate-500">Rent equipment or hire extra stock from outside suppliers for {department}</p>
         </div>
         <button 
           onClick={() => {
@@ -118,9 +118,9 @@ export default function VendorSection({ department }: VendorSectionProps) {
             setFormData({ name: "", phone: "", email: "", specialization: "", address: "", gstNumber: "", department });
             setShowModal(true);
           }}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-sm"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all shadow-sm"
         >
-          <Plus className="w-4 h-4" /> Add Vendor
+          <Plus className="w-4 h-4" /> Add Supplier
         </button>
       </div>
 
@@ -128,11 +128,11 @@ export default function VendorSection({ department }: VendorSectionProps) {
         {loading ? (
           <div className="col-span-full py-12 flex flex-col items-center justify-center text-slate-400">
             <Loader2 className="w-8 h-8 animate-spin mb-2" />
-            <p>Loading vendors...</p>
+            <p>Loading suppliers...</p>
           </div>
         ) : vendors.length === 0 ? (
           <div className="col-span-full py-12 text-center bg-slate-50 dark:bg-slate-900/20 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 text-slate-400">
-            No vendors registered for this department.
+            No suppliers registered yet.
           </div>
         ) : (
           vendors.map((vendor) => (
@@ -145,15 +145,15 @@ export default function VendorSection({ department }: VendorSectionProps) {
                   <button onClick={() => handleEdit(vendor)} className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors">
                     <Pencil className="w-4 h-4" />
                   </button>
-                  <button onClick={() => handleDelete(vendor.id)} className="p-1.5 text-slate-400 hover:text-red-600 transition-colors">
+                  <button onClick={() => handleDelete(vendor.id)} className="p-1.5 text-slate-400 hover:text-red-650 transition-colors">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
               
-              <h4 className="text-lg font-bold text-slate-800 dark:text-white mb-1">{vendor.name}</h4>
-              <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-4">
-                {vendor.specialization || "General Vendor"}
+              <h4 className="text-lg font-semibold text-slate-800 dark:text-white mb-1">{vendor.name}</h4>
+              <p className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-4">
+                {vendor.specialization || "General Supplier"}
               </p>
 
               <div className="space-y-2.5">
@@ -179,8 +179,8 @@ export default function VendorSection({ department }: VendorSectionProps) {
 
               {vendor.gstNumber && (
                 <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">GST Number</span>
-                  <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">{vendor.gstNumber}</span>
+                  <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">GST Tax ID</span>
+                  <span className="text-xs font-mono font-semibold text-slate-700 dark:text-slate-300">{vendor.gstNumber}</span>
                 </div>
               )}
             </div>
@@ -193,14 +193,14 @@ export default function VendorSection({ department }: VendorSectionProps) {
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowModal(false)}></div>
           <div className="bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl z-10 overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-700">
             <div className="p-6 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/20">
-              <h3 className="text-xl font-bold text-slate-800 dark:text-white">{editingId ? "Edit Vendor" : "Add New Vendor"}</h3>
+              <h3 className="text-xl font-semibold text-slate-800 dark:text-white">{editingId ? "Edit Supplier Details" : "Add New Supplier"}</h3>
               <p className="text-sm text-slate-500">Department: {department}</p>
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 tracking-wider">Vendor Name *</label>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5 tracking-wider">Supplier Name *</label>
                   <input 
                     type="text" 
                     required 
@@ -213,7 +213,7 @@ export default function VendorSection({ department }: VendorSectionProps) {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 tracking-wider">Phone Number</label>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5 tracking-wider">Phone Number</label>
                     <input 
                       type="tel" 
                       value={formData.phone}
@@ -223,30 +223,30 @@ export default function VendorSection({ department }: VendorSectionProps) {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 tracking-wider">Specialization</label>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5 tracking-wider">Specialty / Service</label>
                     <input 
                       type="text" 
                       value={formData.specialization}
                       onChange={(e) => setFormData({...formData, specialization: e.target.value})}
                       className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                      placeholder="e.g. 4K Cameras"
+                      placeholder="e.g. LED Screen, Audio Gear"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 tracking-wider">Email Address</label>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5 tracking-wider">Email Address</label>
                   <input 
                     type="email" 
                     value={formData.email}
                     onChange={(e) => setFormData({...formData, email: e.target.value})}
                     className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                    placeholder="vendor@example.com"
+                    placeholder="supplier@example.com"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 tracking-wider">GST Number (Optional)</label>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5 tracking-wider">GST Tax ID (Optional)</label>
                   <input 
                     type="text" 
                     value={formData.gstNumber}
@@ -257,7 +257,7 @@ export default function VendorSection({ department }: VendorSectionProps) {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5 tracking-wider">Office Address</label>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5 tracking-wider">Office Address</label>
                   <textarea 
                     value={formData.address}
                     onChange={(e) => setFormData({...formData, address: e.target.value})}
@@ -272,14 +272,14 @@ export default function VendorSection({ department }: VendorSectionProps) {
                 <button 
                   type="submit" 
                   disabled={submitting}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-all disabled:opacity-50"
                 >
-                  {submitting ? "Saving..." : editingId ? "Update Vendor" : "Create Vendor"}
+                  {submitting ? "Saving..." : editingId ? "Update Supplier" : "Save Supplier"}
                 </button>
                 <button 
                   type="button" 
                   onClick={() => setShowModal(false)}
-                  className="flex-1 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold py-3 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-all"
+                  className="flex-1 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-3 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-all"
                 >
                   Cancel
                 </button>

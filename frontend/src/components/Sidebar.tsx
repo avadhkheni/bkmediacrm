@@ -12,7 +12,6 @@ import {
   Monitor,
   UserCog,
   FileText,
-  Settings,
   LogOut,
   Warehouse,
   Boxes,
@@ -20,7 +19,6 @@ import {
   ClipboardCheck,
   ClipboardX,
   BarChart3,
-  Truck,
   Speaker,
   Briefcase,
   Home,
@@ -39,7 +37,7 @@ const navItems = [
     icon: LayoutGrid,
   },
   { 
-    name: "Inquiries", 
+    name: "Orders & Inquiries", 
     href: "/dashboard/inquiries",
     icon: ClipboardList,
   },
@@ -54,28 +52,28 @@ const navItems = [
     icon: CalendarCheck,
   },
   { 
-    name: "Video Dept", 
+    name: "Video Team", 
     href: "/dashboard/video",
     icon: Video,
-    section: "Departments"
+    section: "Work Teams"
   },
   { 
-    name: "LED Dept", 
+    name: "LED Screen Team", 
     href: "/dashboard/led",
     icon: Monitor,
-    section: "Departments"
+    section: "Work Teams"
   },
   { 
-    name: "Sound Dept", 
+    name: "Sound/Audio Team", 
     href: "/dashboard/sound",
     icon: Speaker,
-    section: "Departments"
+    section: "Work Teams"
   },
   { 
-    name: "Office Dept", 
+    name: "Office Team", 
     href: "/dashboard/office",
     icon: Briefcase,
-    section: "Departments"
+    section: "Work Teams"
   },
   { 
     name: "Warehouse", 
@@ -85,46 +83,40 @@ const navItems = [
     section: "Inventory"
   },
   { 
-    name: "Equipment Stock", 
+    name: "Item Stock", 
     href: "/dashboard/warehouse/inventory",
     icon: Boxes,
     section: "Inventory"
   },
   { 
-    name: "Checklists", 
+    name: "To-Do & Checklists", 
     href: "/dashboard/warehouse/checklists",
     icon: ClipboardCheck,
     section: "Inventory"
   },
   { 
-    name: "Invoices", 
+    name: "Invoices & Bills", 
     href: "/dashboard/invoices",
     icon: FileText,
-    section: "Financials"
+    section: "Bills & Money"
   },
   { 
-    name: "Reports", 
+    name: "Profit Reports", 
     href: "/dashboard/reports",
     icon: BarChart3,
-    section: "Financials"
+    section: "Bills & Money"
   },
   { 
-    name: "Staff Management", 
+    name: "Staff List", 
     href: "/dashboard/staff",
     icon: UserCog,
     section: "Team"
   },
   { 
-    name: "Fleet Management", 
-    href: "/dashboard/settings?tab=vehicles",
-    icon: Truck,
-    section: "Logistics"
-  },
-  { 
-    name: "Settings", 
-    href: "/dashboard/settings",
-    icon: Settings,
-    section: "Admin"
+    name: "Suppliers (Rent)", 
+    href: "/dashboard/vendors",
+    icon: Briefcase,
+    section: "Team"
   },
 ];
 
@@ -161,8 +153,8 @@ export default function Sidebar() {
           </div>
           {!isCollapsed && (
             <div>
-              <h2 className="text-xl font-black tracking-tight text-slate-800 dark:text-white">BK Media</h2>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-black">Admin Panel</p>
+              <h2 className="text-xl font-bold tracking-tight text-slate-800 dark:text-white">BK Media</h2>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-bold">Admin Panel</p>
             </div>
           )}
         </div>
@@ -181,7 +173,7 @@ export default function Sidebar() {
             <div key={item.name}>
               {showSection && (
                 <div className="px-3 pt-5 pb-2">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.section}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.section}</p>
                 </div>
               )}
               <Link
@@ -206,16 +198,16 @@ export default function Sidebar() {
       <div className={`p-4 border-t border-gray-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 ${isCollapsed ? "items-center" : ""}`}>
         {!isCollapsed ? (
           <div className="flex items-center gap-3 mb-4 px-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-sm font-black shadow-lg shadow-blue-500/10">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-sm font-semibold shadow-lg shadow-blue-500/10">
               {user?.name?.charAt(0) || "U"}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{user?.name || "User"}</p>
-              <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">{user?.role?.replace('_', ' ')}</p>
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{user?.role?.replace('_', ' ')}</p>
             </div>
           </div>
         ) : (
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-sm font-black shadow-lg mb-4 mx-auto">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-sm font-semibold shadow-lg mb-4 mx-auto">
             {user?.name?.charAt(0) || "U"}
           </div>
         )}
@@ -223,7 +215,7 @@ export default function Sidebar() {
         <button
           onClick={logout}
           title="Logout"
-          className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-xl transition-all border border-red-100 dark:border-red-900/20 ${isCollapsed ? "justify-center" : ""}`}
+          className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm font-bold text-red-650 dark:text-red-400 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-xl transition-all border border-red-100 dark:border-red-900/20 ${isCollapsed ? "justify-center" : ""}`}
         >
           <LogOut className="w-4 h-4" strokeWidth={2.5} />
           {!isCollapsed && <span>Logout</span>}

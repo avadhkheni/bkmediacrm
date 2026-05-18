@@ -14,6 +14,9 @@ interface LedStock {
   cabinetWidthMm: number;
   cabinetsPerBox: number;
   totalCabinets: number;
+  availableQuantity?: number;
+  inUseQuantity?: number;
+  maintenanceQuantity?: number;
   pricingSqft: number;
   totalBoxes: number;
   status: string;
@@ -103,6 +106,12 @@ export default function LedDepartmentPage() {
         >
           Screen Size Calculator
         </button>
+        <button 
+          onClick={() => setActiveTab('dispatch')}
+          className={`px-6 py-4 font-medium text-sm transition-colors border-b-2 ${
+            activeTab === 'dispatch' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
+          }`}
+        >
           Dispatch Overview
         </button>
         <button 

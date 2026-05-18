@@ -88,20 +88,35 @@ export const getSoundBookings = async (req: Request, res: Response) => {
       where: { inquiryId: Number(inquiryId) },
       include: { equipment: true }
     });
-    res.json(bookings);
+
+    const vendors = await prisma.vendor.findMany({
+      where: { department: 'SOUND' }
+    });
+
+    const bookingsWithVendor = bookings.map(b => ({
+      ...b,
+      vendor: b.vendorId ? vendors.find(v => v.id === b.vendorId) : null
+    }));
+
+    res.json(bookingsWithVendor);
   } catch (error) {
+    console.error('Error fetching bookings:', error);
     res.status(500).json({ message: 'Error fetching bookings' });
   }
 };
 
 export const createSoundBooking = async (req: Request, res: Response) => {
   try {
-    const { inquiryId, equipmentId, position, bookedFrom, bookedTo } = req.body;
+    const { inquiryId, equipmentId, position, bookedFrom, bookedTo, vendorId, vendorCost } = req.body;
 
-    // Check availability (simple)
-    const equip = await prisma.soundEquipment.findUnique({ where: { id: equipmentId } });
-    if (!equip || equip.availableQuantity <= 0) {
-      return res.status(400).json({ message: 'Equipment not available' });
+    const isOutsourced = !!vendorId;
+
+    if (!isOutsourced) {
+      // Check availability (simple)
+      const equip = await prisma.soundEquipment.findUnique({ where: { id: equipmentId } });
+      if (!equip || equip.availableQuantity <= 0) {
+        return res.status(400).json({ message: 'Equipment not available in warehouse stock' });
+      }
     }
 
     const booking = await prisma.soundEventBooking.create({
@@ -110,21 +125,26 @@ export const createSoundBooking = async (req: Request, res: Response) => {
         equipmentId: Number(equipmentId),
         position,
         bookedFrom: new Date(bookedFrom),
-        bookedTo: new Date(bookedTo)
+        bookedTo: new Date(bookedTo),
+        vendorId: vendorId ? Number(vendorId) : null,
+        vendorCost: vendorCost ? Number(vendorCost) : null
       }
     });
 
-    // Update stock
-    await prisma.soundEquipment.update({
-      where: { id: equipmentId },
-      data: {
-        availableQuantity: { decrement: 1 },
-        inUseQuantity: { increment: 1 }
-      }
-    });
+    if (!isOutsourced) {
+      // Update stock
+      await prisma.soundEquipment.update({
+        where: { id: equipmentId },
+        data: {
+          availableQuantity: { decrement: 1 },
+          inUseQuantity: { increment: 1 }
+        }
+      });
+    }
 
     res.json(booking);
   } catch (error) {
+    console.error('Error creating sound booking:', error);
     res.status(500).json({ message: 'Error creating booking' });
   }
 };
@@ -137,14 +157,16 @@ export const deleteSoundBooking = async (req: Request, res: Response) => {
 
     await prisma.soundEventBooking.delete({ where: { id: Number(id) } });
 
-    // Restore stock
-    await prisma.soundEquipment.update({
-      where: { id: booking.equipmentId },
-      data: {
-        availableQuantity: { increment: 1 },
-        inUseQuantity: { decrement: 1 }
-      }
-    });
+    // Restore stock ONLY if it wasn't outsourced from a vendor
+    if (!booking.vendorId) {
+      await prisma.soundEquipment.update({
+        where: { id: booking.equipmentId },
+        data: {
+          availableQuantity: { increment: 1 },
+          inUseQuantity: { decrement: 1 }
+        }
+      });
+    }
 
     res.json({ message: 'Booking deleted' });
   } catch (error) {

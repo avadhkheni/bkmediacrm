@@ -200,3 +200,90 @@ export const deleteLedStock = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Error deleting LED stock' });
   }
 };
+
+export const getLedArrangements = async (req: Request, res: Response) => {
+  try {
+    const { inquiryId } = req.query;
+    const arrangements = await prisma.ledVendorArrangement.findMany({
+      where: { inquiryId: Number(inquiryId) },
+      include: { vendor: true }
+    });
+    res.json(arrangements);
+  } catch (error) {
+    console.error('Error fetching LED vendor arrangements:', error);
+    res.status(500).json({ message: 'Error fetching arrangements' });
+  }
+};
+
+export const createLedArrangement = async (req: Request, res: Response) => {
+  try {
+    const { inquiryId, vendorId, ledType, sqftArranged, costRatePerSqftPerDay, days } = req.body;
+    
+    const vendor = await prisma.vendor.findUnique({
+      where: { id: Number(vendorId) }
+    });
+
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    const totalCost = Number(sqftArranged) * Number(costRatePerSqftPerDay) * Number(days);
+
+    const arrangement = await prisma.ledVendorArrangement.create({
+      data: {
+        inquiryId: Number(inquiryId),
+        vendorId: Number(vendorId),
+        vendorName: vendor.name,
+        ledType,
+        sqftArranged: Number(sqftArranged),
+        costRatePerSqftPerDay: Number(costRatePerSqftPerDay),
+        days: Number(days),
+        totalCost,
+        status: 'ARRANGED'
+      }
+    });
+
+    res.status(201).json(arrangement);
+  } catch (error) {
+    console.error('Error creating LED vendor arrangement:', error);
+    res.status(500).json({ message: 'Error creating arrangement' });
+  }
+};
+
+export const deleteLedArrangement = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await prisma.ledVendorArrangement.delete({
+      where: { id: Number(id) }
+    });
+    res.json({ message: 'Arrangement deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting LED vendor arrangement:', error);
+    res.status(500).json({ message: 'Error deleting arrangement' });
+  }
+};
+
+export const getLedTypeRates = async (req: Request, res: Response) => {
+  try {
+    const rates = await prisma.ledTypeRate.findMany();
+    res.json(rates);
+  } catch (error) {
+    console.error('Error fetching LED type rates:', error);
+    res.status(500).json({ message: 'Error fetching LED type rates' });
+  }
+};
+
+export const updateLedTypeRate = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { ratePerSqftPerDay } = req.body;
+    const rate = await prisma.ledTypeRate.update({
+      where: { id: Number(id) },
+      data: { ratePerSqftPerDay: Number(ratePerSqftPerDay) }
+    });
+    res.json(rate);
+  } catch (error) {
+    console.error('Error updating LED type rate:', error);
+    res.status(500).json({ message: 'Error updating LED type rate' });
+  }
+};

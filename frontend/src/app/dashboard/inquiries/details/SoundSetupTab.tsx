@@ -15,7 +15,11 @@ import {
   Radio,
   Plus,
   Trash2,
-  Search
+  Search,
+  Truck,
+  DollarSign,
+  AlertCircle,
+  X
 } from "lucide-react";
 
 interface SoundSetupTabProps {
@@ -26,24 +30,34 @@ export default function SoundSetupTab({ inquiryId }: SoundSetupTabProps) {
   const [setup, setSetup] = useState<any>(null);
   const [equipmentList, setEquipmentList] = useState<any[]>([]);
   const [bookedGear, setBookedGear] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    fetchSetup();
-  }, [inquiryId]);
+  // Custom Allocation Modal State
+  const [showAllocModal, setShowAllocModal] = useState(false);
+  const [selectedGear, setSelectedGear] = useState<any>(null);
+  const [allocating, setAllocating] = useState(false);
+  const [allocForm, setAllocForm] = useState({
+    position: "Main PA",
+    isOutsourced: false,
+    vendorId: "",
+    vendorCost: ""
+  });
 
   const fetchSetup = async () => {
     try {
-      const [setupRes, equipRes, bookingRes] = await Promise.all([
+      const [setupRes, equipRes, bookingRes, vendorsRes] = await Promise.all([
         api.get(`/sound/setup?inquiryId=${inquiryId}`),
         api.get("/sound/equipment"),
-        api.get(`/sound/bookings?inquiryId=${inquiryId}`) // Need to create this endpoint
+        api.get(`/sound/bookings?inquiryId=${inquiryId}`),
+        api.get("/vendors?department=SOUND")
       ]);
       setSetup(setupRes.data);
       setEquipmentList(equipRes.data);
       setBookedGear(bookingRes.data || []);
+      setVendors(vendorsRes.data || []);
     } catch (error) {
       console.error("Failed to fetch sound data", error);
     } finally {
@@ -51,22 +65,52 @@ export default function SoundSetupTab({ inquiryId }: SoundSetupTabProps) {
     }
   };
 
-  const handleAddGear = async (item: any) => {
-    try {
-      const position = prompt("Where will this be placed? (e.g. Stage Left, Front Fill)", "Main PA");
-      if (!position) return;
+  useEffect(() => {
+    fetchSetup();
+  }, [inquiryId]);
 
-      await api.post("/sound/bookings", {
+  const handleOpenAllocModal = (item: any) => {
+    setSelectedGear(item);
+    setAllocForm({
+      position: "Main PA",
+      isOutsourced: false,
+      vendorId: vendors[0]?.id?.toString() || "",
+      vendorCost: ""
+    });
+    setShowAllocModal(true);
+  };
+
+  const handleConfirmAllocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedGear) return;
+    setAllocating(true);
+    try {
+      const postData: any = {
         inquiryId,
-        equipmentId: item.id,
-        position,
-        bookedFrom: new Date().toISOString(), // Use Inquiry dates ideally
+        equipmentId: selectedGear.id,
+        position: allocForm.position,
+        bookedFrom: new Date().toISOString(), // Defaulting to now, aligns with inquiry dates in backend
         bookedTo: new Date().toISOString()
-      });
+      };
+
+      if (allocForm.isOutsourced) {
+        if (!allocForm.vendorId) {
+          alert("Please select a vendor.");
+          setAllocating(false);
+          return;
+        }
+        postData.vendorId = Number(allocForm.vendorId);
+        postData.vendorCost = Number(allocForm.vendorCost || 0);
+      }
+
+      await api.post("/sound/bookings", postData);
       setSearchQuery("");
+      setShowAllocModal(false);
       fetchSetup();
     } catch (error: any) {
       alert(error.response?.data?.message || "Failed to book gear");
+    } finally {
+      setAllocating(false);
     }
   };
 
@@ -108,7 +152,7 @@ export default function SoundSetupTab({ inquiryId }: SoundSetupTabProps) {
   if (loading) return <div className="p-8 text-center text-slate-500">Loading Sound Setup...</div>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
       {/* Header Info */}
       <div className="bg-slate-900 dark:bg-slate-800 p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-4">
@@ -117,7 +161,7 @@ export default function SoundSetupTab({ inquiryId }: SoundSetupTabProps) {
           </div>
           <div>
             <h3 className="text-xl font-bold text-white">Sound Setup & Design</h3>
-            <p className="text-sm text-slate-400">Configure PA system, power, and stage requirements.</p>
+            <p className="text-sm text-slate-400">Configure PA system, power, stage requirements, and third-party rentals.</p>
           </div>
         </div>
         <button 
@@ -275,10 +319,10 @@ export default function SoundSetupTab({ inquiryId }: SoundSetupTabProps) {
                   <div key={item.id} className="flex items-center justify-between p-3 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-all border border-transparent hover:border-slate-100 dark:hover:border-slate-700">
                     <div>
                       <p className="text-sm font-bold text-slate-800 dark:text-white">{item.name}</p>
-                      <p className="text-[10px] text-slate-500">{item.category} • {item.availableQuantity} available</p>
+                      <p className="text-[10px] text-slate-500">{item.category} • {item.availableQuantity} in warehouse stock</p>
                     </div>
                     <button 
-                      onClick={() => handleAddGear(item)}
+                      onClick={() => handleOpenAllocModal(item)}
                       className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition-all"
                     >
                       <Plus className="w-4 h-4" />
@@ -295,12 +339,19 @@ export default function SoundSetupTab({ inquiryId }: SoundSetupTabProps) {
                 bookedGear.map((booking: any) => (
                   <div key={booking.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-700">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                         <Speaker className="w-5 h-5" />
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-slate-800 dark:text-white">{booking.equipment?.name || "Equipment"}</p>
-                        <p className="text-[10px] text-slate-500 uppercase font-black">{booking.position || "Main PA"}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-bold text-slate-800 dark:text-white leading-tight">{booking.equipment?.name || "Equipment"}</p>
+                          {booking.vendor && (
+                            <span className="inline-flex items-center gap-1 bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 text-[10px] font-black px-2 py-0.5 rounded border border-purple-200/20 uppercase tracking-wide">
+                              <Truck className="w-3 h-3" /> Outsourced: {booking.vendor.name} (₹{booking.vendorCost})
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-slate-500 uppercase font-black mt-1">{booking.position || "Main PA"}</p>
                       </div>
                     </div>
                     <button 
@@ -365,6 +416,122 @@ export default function SoundSetupTab({ inquiryId }: SoundSetupTabProps) {
           </div>
         </div>
       </div>
+
+      {/* Allocation Custom Modal */}
+      {showAllocModal && selectedGear && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setShowAllocModal(false)}></div>
+          <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-md shadow-2xl z-10 overflow-hidden border border-slate-200 dark:border-slate-700 animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/10">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">Allocate Equipment</h3>
+                <p className="text-xs text-slate-400 font-semibold mt-1 uppercase tracking-wide">{selectedGear.name}</p>
+              </div>
+              <button onClick={() => setShowAllocModal(false)} className="text-slate-400 hover:text-slate-650 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmAllocation} className="p-6 space-y-4">
+              {/* Placement Position */}
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Placement / Position *</label>
+                <input 
+                  type="text"
+                  required
+                  value={allocForm.position}
+                  onChange={(e) => setAllocForm({...allocForm, position: e.target.value})}
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white outline-none"
+                  placeholder="e.g. Stage Left, Front Fill"
+                />
+              </div>
+
+              {/* Toggle Sourcing Option */}
+              <div className="pt-2">
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <input 
+                    type="checkbox"
+                    checked={allocForm.isOutsourced}
+                    onChange={(e) => setAllocForm({...allocForm, isOutsourced: e.target.checked})}
+                    className="w-5 h-5 rounded-lg border-slate-300 text-blue-600 focus:ring-blue-500/20"
+                  />
+                  <div className="text-sm">
+                    <p className="font-bold text-slate-800 dark:text-white leading-none">Outsource from External Vendor</p>
+                    <p className="text-xs text-slate-400 font-medium mt-1">Source this unit from an external supplier instead of warehouse stock.</p>
+                  </div>
+                </label>
+              </div>
+
+              {/* Outsourced Fields */}
+              {allocForm.isOutsourced && (
+                <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                  {vendors.length === 0 ? (
+                    <div className="flex items-start gap-2.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 p-3 rounded-xl border border-amber-200/20">
+                      <AlertCircle className="w-4.5 h-4.5 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold">No Registered Vendors Found</p>
+                        <p className="mt-0.5 leading-relaxed font-medium">Please add a vendor for the **Sound Department** under Team -&gt; Vendor Directory first before outsourcing.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Vendor Selection */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1 ml-1">Select Supplier *</label>
+                        <select
+                          required
+                          value={allocForm.vendorId}
+                          onChange={(e) => setAllocForm({...allocForm, vendorId: e.target.value})}
+                          className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-900 dark:text-white outline-none"
+                        >
+                          {vendors.map(v => (
+                            <option key={v.id} value={v.id}>{v.name} ({v.specialization || "General"})</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Vendor Cost */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1 ml-1">Supplier Cost Rate (₹) *</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">₹</span>
+                          <input 
+                            type="number"
+                            required
+                            min="0"
+                            value={allocForm.vendorCost}
+                            onChange={(e) => setAllocForm({...allocForm, vendorCost: e.target.value})}
+                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-7 pr-4 py-2.5 text-sm font-bold text-slate-900 dark:text-white outline-none"
+                            placeholder="e.g. 1500"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="pt-4 flex gap-3">
+                <button
+                  type="submit"
+                  disabled={allocating || (allocForm.isOutsourced && vendors.length === 0)}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-2xl text-sm transition-all disabled:opacity-50 shadow-md"
+                >
+                  {allocating ? "Allocating..." : "Confirm Allocation"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAllocModal(false)}
+                  className="flex-1 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold py-3 rounded-2xl text-sm hover:bg-slate-200 transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

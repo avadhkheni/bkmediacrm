@@ -172,8 +172,13 @@ export default function VideoDepartmentPage() {
       brand: '',
       model: '',
       serialNumber: '',
+      totalQuantity: 1,
+      availableQuantity: 1,
+      inUseQuantity: 0,
+      maintenanceQuantity: 0,
       status: 'AVAILABLE',
       notes: '',
+      warehouseId: '',
     });
     setEditingId(null);
     setActiveTab('add');
@@ -223,7 +228,7 @@ export default function VideoDepartmentPage() {
   return (
     <div className="space-y-6 transition-colors">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Video Department</h2>
+        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Video Team Dashboard</h2>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 text-sm">
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 font-semibold border border-green-200 dark:border-green-800/30">
@@ -258,15 +263,13 @@ export default function VideoDepartmentPage() {
         >
           Upcoming Events
         </button>
-          <Plus className="w-4 h-4" /> {editingId ? 'Edit Equipment' : 'Add Equipment'}
-        </button>
         <button
           onClick={() => setActiveTab('vendors')}
           className={`px-6 py-4 font-medium text-sm transition-colors border-b-2 ${
             activeTab === 'vendors' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
           } flex items-center gap-2`}
         >
-          <Users className="w-4 h-4" /> Vendors
+          <Users className="w-4 h-4" /> Outside Suppliers / Rent
         </button>
       </div>
 
@@ -306,11 +309,11 @@ export default function VideoDepartmentPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700">
-                  <th className="py-4 px-6 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Equipment</th>
-                  <th className="py-4 px-6 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Category</th>
-                  <th className="py-4 px-6 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Brand / Model</th>
-                  <th className="py-4 px-6 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center">Qty. Details</th>
-                  <th className="py-4 px-6 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-right">Actions</th>
+                  <th className="py-4 px-6 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Equipment</th>
+                  <th className="py-4 px-6 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Category</th>
+                  <th className="py-4 px-6 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Brand / Model</th>
+                  <th className="py-4 px-6 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center">Qty. Details</th>
+                  <th className="py-4 px-6 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
@@ -324,7 +327,7 @@ export default function VideoDepartmentPage() {
                   filteredEquipment.map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors group">
                       <td className="py-4 px-6">
-                        <p className="text-sm font-bold text-slate-800 dark:text-white">{item.name}</p>
+                        <p className="text-sm font-semibold text-slate-800 dark:text-white">{item.name}</p>
                         {item.notes && <p className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[200px]">{item.notes}</p>}
                       </td>
                       <td className="py-4 px-6">
@@ -443,13 +446,13 @@ export default function VideoDepartmentPage() {
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
           <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
             <div>
-              <h3 className="font-bold text-slate-800 dark:text-white">{editingId ? 'Edit Equipment' : 'Add New Equipment'}</h3>
+              <h3 className="font-semibold text-slate-800 dark:text-white">{editingId ? 'Edit Equipment' : 'Add New Equipment'}</h3>
               <p className="text-xs text-slate-500 mt-1">{editingId ? 'Modify existing equipment details' : 'Register new video production equipment'}</p>
             </div>
             {editingId && (
               <button 
                 onClick={handleAddClick}
-                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline"
+                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
               >
                 Switch to Add New
               </button>
@@ -459,7 +462,7 @@ export default function VideoDepartmentPage() {
           <form onSubmit={handleAddEquipment} className="p-6 space-y-5 max-w-2xl">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Equipment Name *</label>
+                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Equipment Name *</label>
                 <input
                   type="text"
                   required
@@ -471,7 +474,7 @@ export default function VideoDepartmentPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Category *</label>
+                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Category *</label>
                 <select
                   value={formData.category}
                   onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
@@ -489,7 +492,7 @@ export default function VideoDepartmentPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Brand</label>
+                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Brand</label>
                 <input
                   type="text"
                   value={formData.brand}
@@ -500,7 +503,7 @@ export default function VideoDepartmentPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Model</label>
+                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Model</label>
                 <input
                   type="text"
                   value={formData.model}
@@ -511,7 +514,7 @@ export default function VideoDepartmentPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Serial Number (Optional)</label>
+                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Serial Number (Optional)</label>
                 <input
                   type="text"
                   value={formData.serialNumber}
@@ -522,8 +525,8 @@ export default function VideoDepartmentPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">
-                  {editingId ? "Total Stock (Auto)" : "Quantity to Add"}
+                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">
+                  {editingId ? "Total Stock (Auto)" : "Quantity to Add *"}
                 </label>
                 <input
                   type="number"
@@ -537,38 +540,38 @@ export default function VideoDepartmentPage() {
 
               {editingId && (
                 <div className="md:col-span-2 bg-blue-50/50 dark:bg-blue-900/10 p-6 rounded-2xl border border-blue-100 dark:border-blue-900/30">
-                  <h4 className="text-sm font-bold text-blue-700 dark:text-blue-400 mb-4 flex items-center gap-2">
+                  <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-400 mb-4 flex items-center gap-2">
                     <Package className="w-4 h-4" /> Current Inventory Breakdown
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Available</label>
+                      <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1.5">Available</label>
                       <input
                         type="number"
                         min="0"
                         value={formData.availableQuantity}
                         onChange={(e) => setFormData(prev => ({ ...prev, availableQuantity: Math.max(0, parseInt(e.target.value) || 0) }))}
-                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-slate-900 dark:text-white font-bold text-sm"
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-slate-900 dark:text-white font-semibold text-sm"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">In Use / Booked</label>
+                      <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1.5">In Use / Booked</label>
                       <input
                         type="number"
                         min="0"
                         value={formData.inUseQuantity}
                         onChange={(e) => setFormData(prev => ({ ...prev, inUseQuantity: Math.max(0, parseInt(e.target.value) || 0) }))}
-                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-slate-900 dark:text-white font-bold text-sm"
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-slate-900 dark:text-white font-semibold text-sm"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Maintenance</label>
+                      <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1.5">Maintenance</label>
                       <input
                         type="number"
                         min="0"
                         value={formData.maintenanceQuantity}
                         onChange={(e) => setFormData(prev => ({ ...prev, maintenanceQuantity: Math.max(0, parseInt(e.target.value) || 0) }))}
-                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-slate-900 dark:text-white font-bold text-sm"
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-slate-900 dark:text-white font-semibold text-sm"
                       />
                     </div>
                   </div>
@@ -577,7 +580,7 @@ export default function VideoDepartmentPage() {
               )}
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Status</label>
+                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Status</label>
                 <select
                   value={formData.status}
                   onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
@@ -592,7 +595,7 @@ export default function VideoDepartmentPage() {
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Assign to Warehouse (Optional)</label>
+                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Assign to Warehouse (Optional)</label>
                 <select
                   value={formData.warehouseId}
                   onChange={(e) => setFormData(prev => ({ ...prev, warehouseId: e.target.value }))}
@@ -607,7 +610,7 @@ export default function VideoDepartmentPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Notes</label>
+              <label className="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Notes</label>
               <textarea
                 value={formData.notes}
                 onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
@@ -621,14 +624,14 @@ export default function VideoDepartmentPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="bg-blue-600 dark:bg-blue-500 text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-blue-700 dark:hover:bg-blue-600 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-blue-600 dark:bg-blue-500 text-white px-6 py-3 rounded-xl text-sm font-semibold hover:bg-blue-700 dark:hover:bg-blue-600 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? 'Saving...' : editingId ? 'Update Equipment' : 'Add Equipment'}
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab('equipment')}
-                className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-6 py-3 rounded-xl text-sm font-bold hover:bg-slate-200 dark:hover:bg-slate-600 transition-all"
+                className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-6 py-3 rounded-xl text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-600 transition-all"
               >
                 Cancel
               </button>

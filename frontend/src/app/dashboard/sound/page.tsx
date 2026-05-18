@@ -136,16 +136,16 @@ export default function SoundDashboard() {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">Sound Dept Dashboard</h1>
-          <p className="text-slate-500 dark:text-slate-400 font-medium">Manage professional audio inventory and live setups.</p>
+          <h1 className="text-3xl font-bold text-slate-800 dark:text-white tracking-tight">Sound/Audio Team Dashboard</h1>
+          <p className="text-slate-500 dark:text-slate-400 font-medium">Manage sound assets, speaker stock, and supplier rentals.</p>
         </div>
         <div className="flex gap-3">
-          <button className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-slate-200 transition-all">
+          <button className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-slate-200 transition-all">
             <Warehouse className="w-4 h-4" /> Warehouse View
           </button>
           <button 
             onClick={() => handleOpenModal()}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all"
           >
             <Plus className="w-4 h-4" /> Add Equipment
           </button>
@@ -171,10 +171,10 @@ export default function SoundDashboard() {
               <div className={`p-3 ${stat.color} rounded-2xl text-white ${stat.shadow}`}>
                 <stat.icon className="w-6 h-6" />
               </div>
-              <span className="text-[10px] font-black uppercase text-slate-400 bg-slate-50 dark:bg-slate-900 px-2 py-1 rounded-lg">Realtime</span>
+              <span className="text-[10px] font-semibold uppercase text-slate-400 bg-slate-50 dark:bg-slate-900 px-2 py-1 rounded-lg">Realtime</span>
             </div>
-            <h3 className="text-3xl font-black text-slate-800 dark:text-white">{stat.value}</h3>
-            <p className="text-sm font-bold text-slate-500 mt-1">{stat.label}</p>
+            <h3 className="text-3xl font-bold text-slate-800 dark:text-white">{stat.value}</h3>
+            <p className="text-sm font-semibold text-slate-500 mt-1">{stat.label}</p>
           </motion.div>
         ))}
       </div>
@@ -196,7 +196,7 @@ export default function SoundDashboard() {
             activeTab === 'vendors' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
           } flex items-center gap-2`}
         >
-          <Users className="w-4 h-4" /> Vendors
+          <Users className="w-4 h-4" /> Outside Suppliers / Rent
         </button>
       </div>
 
@@ -227,11 +227,11 @@ export default function SoundDashboard() {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700">
-                <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Asset Name</th>
-                <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Category</th>
-                <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Stock Status</th>
-                <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Rate (Day)</th>
-                <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest">Asset Name</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest">Category</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest">Stock Status</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest">Rate (Day)</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
@@ -246,7 +246,7 @@ export default function SoundDashboard() {
                       </div>
                       <div>
                         <p className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-blue-600 transition-colors">{item.name}</p>
-                        <p className="text-[10px] font-black text-slate-400 mt-0.5">{item.brand} {item.model}</p>
+                        <p className="text-[10px] font-semibold text-slate-400 mt-0.5">{item.brand} {item.model}</p>
                       </div>
                     </div>
                   </td>
@@ -267,14 +267,14 @@ export default function SoundDashboard() {
                         </div>
                       </div>
                       {item.inUseQuantity > 0 && (
-                        <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
                           {item.inUseQuantity} In-Use
                         </span>
                       )}
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <p className="text-sm font-black text-slate-800 dark:text-white">₹{item.ratePerDay?.toLocaleString() || "0"}</p>
+                    <p className="text-sm font-bold text-slate-800 dark:text-white">₹{item.ratePerDay?.toLocaleString() || "0"}</p>
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">
@@ -297,6 +297,7 @@ export default function SoundDashboard() {
             </tbody>
           </table>
         </div>
+      </div>
       )}
 
       {activeTab === 'vendors' && (
@@ -313,10 +314,10 @@ export default function SoundDashboard() {
           >
             <div className="p-6 border-b border-slate-50 dark:border-slate-700 flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white tracking-tight">
                   {editingItem ? "Edit Equipment" : "Add New Equipment"}
                 </h3>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Sound Department Inventory</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mt-1">Sound Team Inventory</p>
               </div>
               <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl transition-all text-slate-400">
                 <X className="w-6 h-6" />
@@ -326,7 +327,7 @@ export default function SoundDashboard() {
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Asset Name</label>
+                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Asset Name *</label>
                   <input 
                     required
                     type="text" 
@@ -338,7 +339,7 @@ export default function SoundDashboard() {
                 </div>
                 
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Category</label>
+                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Category *</label>
                   <select 
                     value={formData.category}
                     onChange={e => setFormData({...formData, category: e.target.value})}
@@ -351,7 +352,7 @@ export default function SoundDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Brand</label>
+                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Brand</label>
                   <input 
                     type="text" 
                     value={formData.brand}
@@ -362,7 +363,7 @@ export default function SoundDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Total Stock</label>
+                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Total Stock *</label>
                   <input 
                     type="number" 
                     min="1"
@@ -373,7 +374,7 @@ export default function SoundDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Daily Rate (₹)</label>
+                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Daily Rental Rate (₹) *</label>
                   <input 
                     type="number" 
                     min="0"
@@ -384,11 +385,11 @@ export default function SoundDashboard() {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Notes / Specs</label>
+                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Notes / Description</label>
                   <textarea 
                     value={formData.notes}
                     onChange={e => setFormData({...formData, notes: e.target.value})}
-                    placeholder="Technical specifications, serial numbers, etc."
+                    placeholder="Technical specifications, description, serial numbers, etc."
                     rows={3}
                     className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-xl py-2.5 px-4 text-sm outline-none focus:ring-4 focus:ring-blue-500/10 transition-all text-slate-900 dark:text-white placeholder:text-slate-400"
                   />
@@ -399,14 +400,14 @@ export default function SoundDashboard() {
                 <button 
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="flex-1 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 py-3 rounded-2xl text-sm font-bold hover:bg-slate-200 transition-all"
+                  className="flex-1 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 py-3 rounded-2xl text-sm font-semibold hover:bg-slate-200 transition-all"
                 >
                   Cancel
                 </button>
                 <button 
                   disabled={submitting}
                   type="submit"
-                  className="flex-1 bg-blue-600 text-white py-3 rounded-2xl text-sm font-bold shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all disabled:opacity-50"
+                  className="flex-1 bg-blue-600 text-white py-3 rounded-2xl text-sm font-semibold shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all disabled:opacity-50"
                 >
                   {submitting ? "Saving..." : editingItem ? "Update Asset" : "Add to Inventory"}
                 </button>

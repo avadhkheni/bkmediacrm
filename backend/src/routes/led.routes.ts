@@ -13,5 +13,11 @@ router.get('/allocations', authenticate, LedController.getWarehouseAllocations);
 router.post('/allocations', authenticate, LedController.createWarehouseAllocation);
 router.get('/dispatch-boxes', authenticate, LedController.getDispatchBoxes);
 router.post('/dispatch-boxes', authenticate, LedController.createDispatchBox);
+router.get('/arrangements', authenticate, LedController.getLedArrangements);
+router.post('/arrangements', authenticate, LedController.createLedArrangement);
+router.delete('/arrangements/:id', authenticate, LedController.deleteLedArrangement);
+
+router.get('/type-rates', authenticate, LedController.getLedTypeRates);
+router.put('/type-rates/:id', authenticate, LedController.updateLedTypeRate);
 
 export default router;

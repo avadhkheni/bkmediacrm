@@ -19,13 +19,15 @@ import {
   FileText,
   Download,
   HardDrive,
-  Speaker
+  Speaker,
+  Video
 } from "lucide-react";
 import { generateInquiryPDF, generateQuotationPDF, generateInvoicePDF } from "@/lib/pdfGenerator";
 import DispatchTab from "./DispatchTab";
 import VideoDataSheetTab from "./VideoDataSheetTab";
 import SoundSetupTab from "./SoundSetupTab";
 import OfficeTasksTab from "./OfficeTasksTab";
+import VideoSetupTab from "./VideoSetupTab";
 
 function InquiryDetailsContent() {
   const router = useRouter();
@@ -355,14 +357,24 @@ function InquiryDetailsContent() {
             </button>
           )}
           {inquiry?.department === 'VIDEO' && (
-            <button 
-              onClick={() => setActiveTab('data-sheet')}
-              className={`px-6 py-4 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
-                activeTab === 'data-sheet' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700'
-              }`}
-            >
-              <HardDrive className="w-4 h-4" /> Data Sheet
-            </button>
+            <>
+              <button 
+                onClick={() => setActiveTab('video-setup')}
+                className={`px-6 py-4 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
+                  activeTab === 'video-setup' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700'
+                }`}
+              >
+                <Video className="w-4 h-4" /> Video Setup
+              </button>
+              <button 
+                onClick={() => setActiveTab('data-sheet')}
+                className={`px-6 py-4 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
+                  activeTab === 'data-sheet' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700'
+                }`}
+              >
+                <HardDrive className="w-4 h-4" /> Data Sheet
+              </button>
+            </>
           )}
           {inquiry?.department === 'OFFICE' && (
             <button 
@@ -665,6 +677,9 @@ function InquiryDetailsContent() {
           )}
           {activeTab === 'sound-setup' && inquiry?.department === 'SOUND' && (
             <SoundSetupTab inquiryId={inquiry.id} />
+          )}
+          {activeTab === 'video-setup' && inquiry?.department === 'VIDEO' && (
+            <VideoSetupTab inquiryId={inquiry.id} />
           )}
           {activeTab === 'data-sheet' && inquiry?.department === 'VIDEO' && (
             <VideoDataSheetTab inquiryId={inquiry.id} />

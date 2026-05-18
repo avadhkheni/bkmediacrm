@@ -28,15 +28,26 @@ export const createExpenseReport = async (req: AuthRequest, res: Response) => {
     const staffAssignments = await prisma.eventStaffAssignment.findMany({
       where: { inquiryId: Number(inquiryId) },
     });
-    const vendorArrangements = await prisma.ledVendorArrangement.findMany({
+    const ledVendorArrangements = await prisma.ledVendorArrangement.findMany({
       where: { inquiryId: Number(inquiryId) },
+    });
+    const videoBookings = await prisma.videoEventBooking.findMany({
+      where: { inquiryId: Number(inquiryId), NOT: { vendorId: null } },
+    });
+    const soundBookings = await prisma.soundEventBooking.findMany({
+      where: { inquiryId: Number(inquiryId), NOT: { vendorId: null } },
     });
     const quotation = await prisma.quotation.findFirst({
       where: { inquiryId: Number(inquiryId), status: 'APPROVED' },
     });
 
     const totalStaffCost = staffAssignments.reduce((sum, a) => sum + Number(a.totalPayment), 0);
-    const totalVendorCost = vendorArrangements.reduce((sum, v) => sum + Number(v.totalCost), 0);
+    
+    const ledVendorCost = ledVendorArrangements.reduce((sum, v) => sum + Number(v.totalCost || 0), 0);
+    const videoVendorCost = videoBookings.reduce((sum, v) => sum + Number(v.vendorCost || 0), 0);
+    const soundVendorCost = soundBookings.reduce((sum, v) => sum + Number(v.vendorCost || 0), 0);
+    
+    const totalVendorCost = ledVendorCost + videoVendorCost + soundVendorCost;
     const transport = Number(transportExpense || 0);
     const food = Number(foodExpense || 0);
     const misc = Number(miscExpense || 0);

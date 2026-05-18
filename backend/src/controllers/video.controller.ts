@@ -84,7 +84,17 @@ export const getBookings = async (req: Request, res: Response) => {
       where,
       include: { equipment: true }
     });
-    res.json(bookings);
+
+    const vendors = await prisma.vendor.findMany({
+      where: { department: 'VIDEO' }
+    });
+
+    const bookingsWithVendor = bookings.map(b => ({
+      ...b,
+      vendor: b.vendorId ? vendors.find(v => v.id === b.vendorId) : null
+    }));
+
+    res.json(bookingsWithVendor);
   } catch (error) {
     console.error('Error fetching bookings:', error);
     res.status(500).json({ message: 'Error fetching bookings' });
@@ -93,7 +103,18 @@ export const getBookings = async (req: Request, res: Response) => {
 
 export const createBooking = async (req: Request, res: Response) => {
   try {
-    const { inquiryId, equipmentId, bookedFrom, bookedTo, position } = req.body;
+    const { inquiryId, equipmentId, bookedFrom, bookedTo, position, vendorId, vendorCost } = req.body;
+
+    const isOutsourced = !!vendorId;
+
+    if (!isOutsourced) {
+      // Check availability
+      const equip = await prisma.videoEquipment.findUnique({ where: { id: Number(equipmentId) } });
+      if (!equip || equip.availableQuantity <= 0) {
+        return res.status(400).json({ message: 'Equipment not available in warehouse stock' });
+      }
+    }
+
     const booking = await prisma.videoEventBooking.create({
       data: {
         inquiryId: Number(inquiryId),
@@ -101,13 +122,53 @@ export const createBooking = async (req: Request, res: Response) => {
         bookedFrom: new Date(bookedFrom),
         bookedTo: new Date(bookedTo),
         position,
-        status: 'BOOKED'
+        status: 'BOOKED',
+        vendorId: vendorId ? Number(vendorId) : null,
+        vendorCost: vendorCost ? Number(vendorCost) : null
       }
     });
+
+    if (!isOutsourced) {
+      // Update stock
+      await prisma.videoEquipment.update({
+        where: { id: Number(equipmentId) },
+        data: {
+          availableQuantity: { decrement: 1 },
+          inUseQuantity: { increment: 1 }
+        }
+      });
+    }
+
     res.status(201).json(booking);
   } catch (error) {
     console.error('Error creating booking:', error);
     res.status(500).json({ message: 'Error creating booking' });
+  }
+};
+
+export const deleteBooking = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const booking = await prisma.videoEventBooking.findUnique({ where: { id: Number(id) } });
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    await prisma.videoEventBooking.delete({ where: { id: Number(id) } });
+
+    // Restore stock ONLY if it wasn't outsourced from a vendor
+    if (!booking.vendorId) {
+      await prisma.videoEquipment.update({
+        where: { id: booking.equipmentId },
+        data: {
+          availableQuantity: { increment: 1 },
+          inUseQuantity: { decrement: 1 }
+        }
+      });
+    }
+
+    res.json({ message: 'Booking deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting booking:', error);
+    res.status(500).json({ message: 'Error deleting booking' });
   }
 };
 
