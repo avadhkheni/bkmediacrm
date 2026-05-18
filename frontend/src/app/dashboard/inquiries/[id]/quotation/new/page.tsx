@@ -12,6 +12,7 @@ export default function NewQuotationPage() {
   
   const [inquiry, setInquiry] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [warehouseStock, setWarehouseStock] = useState<any[]>([]);
 
   const { register, control, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm({
     defaultValues: {
@@ -32,10 +33,24 @@ export default function NewQuotationPage() {
   const watchGstRate = watch("gstRate");
 
   useEffect(() => {
-    const fetchInquiry = async () => {
+    const fetchInquiryAndStock = async () => {
       try {
         const { data } = await api.get(`/inquiries/${inquiryId}`);
         setInquiry(data);
+
+        // Fetch corresponding warehouse stock levels based on department
+        let stockRes;
+        if (data.department === 'LED') {
+          stockRes = await api.get('/led/stock');
+        } else if (data.department === 'VIDEO') {
+          stockRes = await api.get('/video/equipment');
+        } else if (data.department === 'SOUND') {
+          stockRes = await api.get('/sound/equipment');
+        }
+        if (stockRes) {
+          setWarehouseStock(stockRes.data || []);
+        }
+
         // Pre-fill days for all items
         setValue("items", [{ 
           placeName: 'Main Venue', 
@@ -51,18 +66,40 @@ export default function NewQuotationPage() {
           ledType: ''
         }]);
       } catch (error) {
-        console.error("Failed to load inquiry", error);
+        console.error("Failed to load inquiry or stock", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchInquiry();
+    fetchInquiryAndStock();
   }, [inquiryId, setValue]);
+
+  // Stock Check Helper Functions
+  const getAvailableSqftForType = (type: string) => {
+    if (!type || !warehouseStock || warehouseStock.length === 0) return 0;
+    const stocksOfType = warehouseStock.filter((s: any) => s.ledType?.toLowerCase() === type.toLowerCase());
+    return stocksOfType.reduce((acc: number, s: any) => {
+      const heightM = (s.cabinetHeightMm || 500) / 1000;
+      const widthM = (s.cabinetWidthMm || 500) / 1000;
+      const qty = s.availableQuantity !== undefined ? s.availableQuantity : s.totalCabinets;
+      const sqMeters = heightM * widthM * qty;
+      const sqFt = sqMeters * 10.7639;
+      return acc + sqFt;
+    }, 0);
+  };
+
+  const getEquipmentStockInfo = (equipmentName: string) => {
+    if (!equipmentName || !warehouseStock || warehouseStock.length === 0) return null;
+    const cleanName = equipmentName.toLowerCase().trim();
+    const match = warehouseStock.find((e: any) => e.name?.toLowerCase().trim() === cleanName) ||
+                  warehouseStock.find((e: any) => e.name?.toLowerCase().includes(cleanName));
+    return match || null;
+  };
 
   // Calculation logic
   const calculateSubtotal = () => {
     return watchItems.reduce((acc, item: any) => {
-      if (inquiry?.department === 'VIDEO') {
+      if (inquiry?.department === 'VIDEO' || inquiry?.department === 'SOUND') {
         return acc + (Number(item.ratePerDay) * Number(item.days));
       } else {
         const sqft = Number(item.heightFt) * Number(item.widthFt) * Number(item.nos);
@@ -79,7 +116,7 @@ export default function NewQuotationPage() {
     // Frontend validation: check all items have required fields
     const hasEmptyItems = data.items.some((item: any) => {
       if (!item.placeName || item.placeName.trim() === '') return true;
-      if (inquiry.department === 'VIDEO') {
+      if (inquiry.department === 'VIDEO' || inquiry.department === 'SOUND') {
         if (!item.equipmentType || item.equipmentType.trim() === '') return true;
         if (!item.ratePerDay || Number(item.ratePerDay) <= 0) return true;
         if (!item.days || Number(item.days) <= 0) return true;
@@ -106,7 +143,7 @@ export default function NewQuotationPage() {
         inquiryId,
         items: data.items.map((item: any) => {
           const base = { ...item };
-          if (inquiry.department === 'VIDEO') {
+          if (inquiry.department === 'VIDEO' || inquiry.department === 'SOUND') {
             base.totalAmount = Number(item.ratePerDay) * Number(item.days);
           } else {
             const sqft = Number(item.heightFt) * Number(item.widthFt) * Number(item.nos);
@@ -159,7 +196,7 @@ export default function NewQuotationPage() {
                   <input {...register(`items.${index}.placeName`, { required: 'Place name is required' })} className={`w-full text-sm p-2 rounded-md border ${errors.items?.[index]?.placeName ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-white'} dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white`} placeholder="Main Venue" />
                 </div>
                 
-                {inquiry.department === 'VIDEO' ? (
+                {inquiry.department === 'VIDEO' || inquiry.department === 'SOUND' ? (
                   <>
                     <div className="md:col-span-3">
                       <label className="block text-xs text-slate-500 mb-1">Equipment / Service</label>
@@ -206,12 +243,62 @@ export default function NewQuotationPage() {
                 <div className="md:col-span-2 text-right self-end pb-2">
                   <p className="text-xs text-slate-400">Total</p>
                   <p className="text-sm font-bold dark:text-white">
-                    ₹{inquiry.department === 'VIDEO' 
+                    ₹{inquiry.department === 'VIDEO' || inquiry.department === 'SOUND'
                       ? (Number(watchItems[index]?.ratePerDay || 0) * Number(watchItems[index]?.days || 1)).toLocaleString()
                       : (Number(watchItems[index]?.widthFt || 0) * Number(watchItems[index]?.heightFt || 0) * Number(watchItems[index]?.nos || 1) * Number(watchItems[index]?.ratePerSqft || 0) * Number(watchItems[index]?.days || 1)).toLocaleString()
                     }
                   </p>
                 </div>
+
+                {/* Real-time Warehouse Stock Check & Shortage Outsourcing Warning */}
+                {inquiry.department === 'LED' ? (() => {
+                  const ledType = watchItems[index]?.ledType || '';
+                  if (!ledType) return null;
+                  const availableSqft = getAvailableSqftForType(ledType);
+                  const requestedSqft = Number(watchItems[index]?.widthFt || 0) * Number(watchItems[index]?.heightFt || 0) * Number(watchItems[index]?.nos || 1);
+                  if (requestedSqft === 0) return null;
+
+                  if (requestedSqft > availableSqft) {
+                    const shortage = requestedSqft - availableSqft;
+                    return (
+                      <div className="md:col-span-12 flex items-center gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 px-3 py-2 rounded-lg border border-amber-200/20 mt-1">
+                        <span>⚠️ Stock Shortage: BK Media has {Math.round(availableSqft)} sq ft of {ledType} in-house. You need to outsource the remaining {Math.round(shortage)} sq ft from outside vendors.</span>
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div className="md:col-span-12 flex items-center gap-2 text-xs font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/20 px-3 py-2 rounded-lg border border-green-200/20 mt-1">
+                        <span>✓ Sufficient Stock: {Math.round(availableSqft)} sq ft of {ledType} available in-house.</span>
+                      </div>
+                    );
+                  }
+                })() : (() => {
+                  const gearName = watchItems[index]?.equipmentType || '';
+                  if (!gearName || gearName.trim() === '') return null;
+                  const stockInfo = getEquipmentStockInfo(gearName);
+                  if (!stockInfo) {
+                    return (
+                      <div className="md:col-span-12 flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 px-3 py-2 rounded-lg border border-slate-100 dark:border-slate-800 mt-1">
+                        <span>ℹ️ Custom Asset / Service: Confirm in-house availability or vendor source.</span>
+                      </div>
+                    );
+                  }
+                  
+                  const availQty = stockInfo.availableQuantity !== undefined ? stockInfo.availableQuantity : stockInfo.totalQuantity;
+                  if (availQty <= 0) {
+                    return (
+                      <div className="md:col-span-12 flex items-center gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 px-3 py-2 rounded-lg border border-amber-200/20 mt-1">
+                        <span>⚠️ Out of Stock: "{stockInfo.name}" is currently booked or unavailable in warehouse. You will need to outsource this item.</span>
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div className="md:col-span-12 flex items-center gap-2 text-xs font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/20 px-3 py-2 rounded-lg border border-green-200/20 mt-1">
+                        <span>✓ Sufficient Stock: {availQty} units of "{stockInfo.name}" available in-house.</span>
+                      </div>
+                    );
+                  }
+                })()}
 
                 <button 
                   type="button" 

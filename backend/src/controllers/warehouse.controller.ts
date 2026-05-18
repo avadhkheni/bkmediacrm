@@ -63,7 +63,8 @@ export const getWarehouseById = async (req: Request, res: Response) => {
       where: { id: Number(id) },
       include: {
         videoStock: true,
-        ledStock: true
+        ledStock: true,
+        soundStock: true
       }
     });
     
@@ -274,7 +275,7 @@ export const deleteWarehouse = async (req: Request, res: Response) => {
       where: { id: Number(id) },
       include: {
         _count: {
-          select: { videoStock: true, ledStock: true }
+          select: { videoStock: true, ledStock: true, soundStock: true }
         }
       }
     });
@@ -284,7 +285,7 @@ export const deleteWarehouse = async (req: Request, res: Response) => {
       return;
     }
 
-    if (warehouse._count.videoStock > 0 || warehouse._count.ledStock > 0) {
+    if (warehouse._count.videoStock > 0 || warehouse._count.ledStock > 0 || warehouse._count.soundStock > 0) {
       res.status(400).json({ message: 'Cannot delete warehouse that contains equipment stock. Please reassign or delete the stock first.' });
       return;
     }

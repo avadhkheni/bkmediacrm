@@ -14,6 +14,7 @@ interface WarehouseItem {
   _count?: {
     videoStock: number;
     ledStock: number;
+    soundStock: number;
   };
   createdAt: string;
 }
@@ -146,6 +147,7 @@ export default function WarehousePage() {
                 <th className="py-4 px-6 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Location</th>
                 <th className="py-4 px-6 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center">Video Equip.</th>
                 <th className="py-4 px-6 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center">LED Stock</th>
+                <th className="py-4 px-6 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center">Sound Equip.</th>
                 <th className="py-4 px-6 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center">Status</th>
                 <th className="py-4 px-6 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-right">Actions</th>
               </tr>
@@ -153,11 +155,11 @@ export default function WarehousePage() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-400">Loading warehouses...</td>
+                  <td colSpan={7} className="py-8 text-center text-slate-400">Loading warehouses...</td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-400">No warehouses found</td>
+                  <td colSpan={7} className="py-8 text-center text-slate-400">No warehouses found</td>
                 </tr>
               ) : (
                 filtered.map((item) => (
@@ -169,13 +171,18 @@ export default function WarehousePage() {
                       <p className="text-sm text-slate-600 dark:text-slate-400">{item.location}</p>
                     </td>
                     <td className="py-4 px-6 text-center">
-                      <span className="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md text-xs font-bold border border-slate-200 dark:border-slate-700">
+                      <span className="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded-md text-xs font-bold border border-indigo-200 dark:border-indigo-900/50">
                         {item._count?.videoStock || 0}
                       </span>
                     </td>
                     <td className="py-4 px-6 text-center">
-                      <span className="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md text-xs font-bold border border-slate-200 dark:border-slate-700">
+                      <span className="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400 rounded-md text-xs font-bold border border-pink-200 dark:border-pink-900/50">
                         {item._count?.ledStock || 0}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 text-center">
+                      <span className="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-md text-xs font-bold border border-amber-200 dark:border-amber-900/50">
+                        {item._count?.soundStock || 0}
                       </span>
                     </td>
                     <td className="py-4 px-6 text-center">

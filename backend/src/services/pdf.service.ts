@@ -402,3 +402,77 @@ export async function generateExpenseReportPdf(inquiryId: number): Promise<Buffe
   `;
   return htmlToPdf(baseHtml('Expense Report', body));
 }
+
+// ─── 8. Vendor Rentals Report PDF ──────────────────────────
+export async function generateVendorRentalsPdf(): Promise<Buffer> {
+  const rentals = await prisma.vendorRental.findMany({
+    include: {
+      vendor: true,
+      inquiry: {
+        include: {
+          client: true
+        }
+      }
+    },
+    orderBy: { rentedDate: 'desc' }
+  });
+
+  const rows = rentals.map((r, i) => {
+    const rentedStr = r.rentedDate ? new Date(r.rentedDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+    const endStr = (r as any).endDate ? new Date((r as any).endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+    const dateRange = endStr ? `${rentedStr} – ${endStr}` : rentedStr;
+    const vendorName = r.vendor?.name || 'General';
+    const vendorDepts = r.vendor?.department || 'General';
+
+    return `
+      <tr>
+        <td>${i + 1}</td>
+        <td>
+          <strong>${r.itemName}</strong><br>
+          <span style="font-size:10px;color:#555">Vendor: ${vendorName} (${vendorDepts})</span>
+        </td>
+        <td>${r.quantity}</td>
+        <td>₹${Number(r.pricePerDay).toLocaleString('en-IN')} / day</td>
+        <td>₹${Number(r.totalCost).toLocaleString('en-IN')}</td>
+        <td style="font-size:11px">${dateRange}</td>
+        <td style="font-size:11px">${r.inquiry?.eventName || 'General Rental'}</td>
+        <td><span class="badge ${r.status === 'RETURNED_TO_VENDOR' ? 'badge-green' : 'badge-amber'}">${r.status.replace(/_/g, ' ')}</span></td>
+      </tr>
+    `;
+  }).join('');
+
+  const totalCostSum = rentals.reduce((sum, r) => sum + Number(r.totalCost), 0);
+  const totalQtySum = rentals.reduce((sum, r) => sum + r.quantity, 0);
+
+  const body = `
+    <div class="header">
+      <div><h1>Outside Vendor Rentals Report</h1><p style="font-size:13px;color:#555">Hired Inventory Tracker</p></div>
+      <div class="meta">
+        <strong>Total Items:</strong> ${totalQtySum} units<br>
+        <strong>Total Ledger Cost:</strong> ₹${totalCostSum.toLocaleString('en-IN')}
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Item & Vendor</th>
+          <th>Qty</th>
+          <th>Rate</th>
+          <th>Total Cost</th>
+          <th>Rented Period</th>
+          <th>Deployed Event</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows || '<tr><td colspan="8">No outside vendor rentals found</td></tr>'}
+      </tbody>
+    </table>
+    <div class="totals">
+      <div class="row bold"><span>Total Rental Expense</span><span>₹${totalCostSum.toLocaleString('en-IN')}</span></div>
+    </div>
+  `;
+  return htmlToPdf(baseHtml('Vendor Rentals Report', body));
+}
+

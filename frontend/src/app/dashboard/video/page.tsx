@@ -41,6 +41,13 @@ interface VideoEquipment {
 
 export default function VideoDepartmentPage() {
   const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.pathname === "/dashboard/video") {
+      router.replace("/dashboard/teams?tab=video");
+    }
+  }, [router]);
+
   const [equipment, setEquipment] = useState<VideoEquipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'equipment' | 'events' | 'add' | 'vendors'>('equipment');
@@ -229,20 +236,6 @@ export default function VideoDepartmentPage() {
     <div className="space-y-6 transition-colors">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Video Team Dashboard</h2>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 font-semibold border border-green-200 dark:border-green-800/30">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-              {equipment.filter(e => e.status === 'AVAILABLE').length} Available
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400 font-semibold border border-orange-200 dark:border-orange-800/30">
-              {equipment.filter(e => e.status === 'BOOKED').length} Booked
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 font-semibold border border-blue-200 dark:border-blue-800/30">
-              {equipment.filter(e => e.status === 'IN_USE').length} In Use
-            </span>
-          </div>
-        </div>
       </div>
 
       {/* Tabs */}

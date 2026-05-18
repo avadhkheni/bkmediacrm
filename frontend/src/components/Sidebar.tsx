@@ -8,8 +8,6 @@ import {
   ClipboardList,
   Users,
   CalendarCheck,
-  Video,
-  Monitor,
   UserCog,
   FileText,
   LogOut,
@@ -19,13 +17,13 @@ import {
   ClipboardCheck,
   ClipboardX,
   BarChart3,
-  Speaker,
   Briefcase,
   Home,
   ChevronLeft,
   ChevronRight,
   Menu,
-  X
+  X,
+  Truck
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -52,27 +50,9 @@ const navItems = [
     icon: CalendarCheck,
   },
   { 
-    name: "Video Team", 
-    href: "/dashboard/video",
-    icon: Video,
-    section: "Work Teams"
-  },
-  { 
-    name: "LED Screen Team", 
-    href: "/dashboard/led",
-    icon: Monitor,
-    section: "Work Teams"
-  },
-  { 
-    name: "Sound/Audio Team", 
-    href: "/dashboard/sound",
-    icon: Speaker,
-    section: "Work Teams"
-  },
-  { 
-    name: "Office Team", 
-    href: "/dashboard/office",
-    icon: Briefcase,
+    name: "Work Teams", 
+    href: "/dashboard/teams",
+    icon: Users,
     section: "Work Teams"
   },
   { 
@@ -95,6 +75,18 @@ const navItems = [
     section: "Inventory"
   },
   { 
+    name: "Vendors (Rent)", 
+    href: "/dashboard/vendors",
+    icon: Briefcase,
+    section: "Inventory"
+  },
+  { 
+    name: "Vehicles", 
+    href: "/dashboard/vehicles",
+    icon: Truck,
+    section: "Inventory"
+  },
+  { 
     name: "Invoices & Bills", 
     href: "/dashboard/invoices",
     icon: FileText,
@@ -110,12 +102,6 @@ const navItems = [
     name: "Staff List", 
     href: "/dashboard/staff",
     icon: UserCog,
-    section: "Team"
-  },
-  { 
-    name: "Suppliers (Rent)", 
-    href: "/dashboard/vendors",
-    icon: Briefcase,
     section: "Team"
   },
 ];

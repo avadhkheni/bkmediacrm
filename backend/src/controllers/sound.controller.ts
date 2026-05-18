@@ -90,7 +90,12 @@ export const getSoundBookings = async (req: Request, res: Response) => {
     });
 
     const vendors = await prisma.vendor.findMany({
-      where: { department: 'SOUND' }
+      where: {
+        OR: [
+          { department: 'SOUND' },
+          { department: { contains: 'SOUND' } }
+        ]
+      }
     });
 
     const bookingsWithVendor = bookings.map(b => ({

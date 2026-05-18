@@ -29,9 +29,12 @@ export const getInvoices = async (req: Request, res: Response) => {
         quotation: {
           include: {
             videoQuotationItems: true,
-            ledQuotationItems: true
+            ledQuotationItems: true,
+            soundQuotationItems: true,
+            officeQuotationItems: true
           }
         }, 
+        inquiry: { include: { client: true } }, 
         payments: true 
       },
       orderBy: { createdAt: 'desc' },
@@ -102,7 +105,9 @@ export const getInvoiceById = async (req: Request, res: Response) => {
         quotation: {
           include: {
             videoQuotationItems: true,
-            ledQuotationItems: true
+            ledQuotationItems: true,
+            soundQuotationItems: true,
+            officeQuotationItems: true
           }
         }, 
         inquiry: { include: { client: true } }, 

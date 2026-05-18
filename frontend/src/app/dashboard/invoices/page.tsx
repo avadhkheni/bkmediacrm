@@ -18,7 +18,8 @@ interface Invoice {
   status: string;
   dueDate: string;
   createdAt: string;
-  quotation: { inquiry: { eventName: string; client: { name: string } } };
+  quotation: any;
+  inquiry: { eventName: string; client: { name: string } };
   payments: { amount: number; paymentMethod: string; receivedAt: string }[];
 }
 
@@ -138,8 +139,8 @@ export default function InvoicesPage() {
                     className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
                   >
                     <td className="py-3 px-6 text-sm font-medium text-slate-900 dark:text-white">{inv.invoiceNumber}</td>
-                    <td className="py-3 px-6 text-sm text-slate-700 dark:text-slate-300">{inv.quotation?.inquiry?.eventName || "-"}</td>
-                    <td className="py-3 px-6 text-sm text-slate-700 dark:text-slate-300">{inv.quotation?.inquiry?.client?.name || "-"}</td>
+                    <td className="py-3 px-6 text-sm text-slate-700 dark:text-slate-300">{inv.inquiry?.eventName || "-"}</td>
+                    <td className="py-3 px-6 text-sm text-slate-700 dark:text-slate-300">{inv.inquiry?.client?.name || "-"}</td>
                     <td className="py-3 px-6 text-sm text-right font-medium text-slate-900 dark:text-white">₹{Number(inv.grossTotal).toLocaleString()}</td>
                     <td className="py-3 px-6 text-sm text-right font-medium text-amber-600 dark:text-amber-400">₹{Number(inv.balanceAmount || 0).toLocaleString()}</td>
                     <td className="py-3 px-6 text-sm">
@@ -153,7 +154,7 @@ export default function InvoicesPage() {
                           // Ensure we have enough data for the PDF
                           generateInvoicePDF({
                             ...inv,
-                            inquiry: inv.quotation.inquiry,
+                            inquiry: inv.inquiry,
                             quotation: inv.quotation
                           });
                         }}

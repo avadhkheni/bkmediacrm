@@ -19,13 +19,16 @@ import {
   FileText,
   Download,
   HardDrive,
-  Speaker,
-  Video
+  Video,
+  Monitor,
+  Truck,
+  Calendar,
+  DollarSign,
+  ClipboardList
 } from "lucide-react";
 import { generateInquiryPDF, generateQuotationPDF, generateInvoicePDF } from "@/lib/pdfGenerator";
 import DispatchTab from "./DispatchTab";
 import VideoDataSheetTab from "./VideoDataSheetTab";
-import SoundSetupTab from "./SoundSetupTab";
 import OfficeTasksTab from "./OfficeTasksTab";
 import VideoSetupTab from "./VideoSetupTab";
 
@@ -36,11 +39,30 @@ function InquiryDetailsContent() {
   
   const [inquiry, setInquiry] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'quotations' | 'invoices' | 'workflows'>('quotations');
+  const [activeTab, setActiveTab] = useState<'quotations' | 'invoices' | 'workflows' | 'dispatch' | 'video-setup' | 'data-sheet' | 'office-tasks' | 'vendor-rentals'>('quotations');
   const [qFilter, setQFilter] = useState<'ALL' | 'DRAFT' | 'APPROVED'>('ALL');
   const [showDeclineModal, setShowDeclineModal] = useState(false);
   const [selectedQuotation, setSelectedQuotation] = useState<any>(null);
   const [declineReason, setDeclineReason] = useState("");
+
+  // Outside Vendor Rentals states
+  const [vendors, setVendors] = useState<any[]>([]);
+  const [showRentalModal, setShowRentalModal] = useState(false);
+  const [rentalSubmitting, setRentalSubmitting] = useState(false);
+  const [editingRentalId, setEditingRentalId] = useState<number | null>(null);
+  const [rentalFormData, setRentalFormData] = useState({
+    vendorId: "",
+    itemName: "",
+    quantity: "1",
+    pricePerDay: "",
+    totalCost: "",
+    rentedDate: new Date().toISOString().split("T")[0],
+    endDate: "",
+    notes: "",
+    status: "RENTED",
+    returnedFromEventDate: "",
+    returnedToVendorDate: ""
+  });
 
   useEffect(() => {
     if (!id) return;
@@ -56,8 +78,74 @@ function InquiryDetailsContent() {
       }
     };
     
+    const fetchVendors = async () => {
+      try {
+        const { data } = await api.get("/vendors");
+        setVendors(data);
+      } catch (err) {
+        console.error("Failed to load vendors", err);
+      }
+    };
+    
     fetchInquiry();
+    fetchVendors();
   }, [id]);
+
+  const handleRentalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rentalFormData.vendorId || !rentalFormData.itemName || !rentalFormData.pricePerDay) {
+      alert("Please fill in Select Vendor, Item Name, and Price per Day.");
+      return;
+    }
+    setRentalSubmitting(true);
+    try {
+      const payload = {
+        vendorId: Number(rentalFormData.vendorId),
+        itemName: rentalFormData.itemName,
+        quantity: Number(rentalFormData.quantity || 1),
+        pricePerDay: Number(rentalFormData.pricePerDay),
+        totalCost: Number(rentalFormData.totalCost || (Number(rentalFormData.pricePerDay) * Number(rentalFormData.quantity || 1))),
+        inquiryId: Number(id),
+        rentedDate: rentalFormData.rentedDate,
+        endDate: rentalFormData.endDate || null,
+        notes: rentalFormData.notes,
+        status: rentalFormData.status,
+        returnedFromEventDate: rentalFormData.returnedFromEventDate || null,
+        returnedToVendorDate: rentalFormData.returnedToVendorDate || null
+      };
+
+      if (editingRentalId) {
+        await api.patch(`/vendors/rentals/${editingRentalId}`, payload);
+      } else {
+        await api.post("/vendors/rentals", payload);
+      }
+
+      // Re-fetch inquiry to reload vendorRentals list!
+      const { data } = await api.get(`/inquiries/${id}`);
+      setInquiry(data);
+
+      setShowRentalModal(false);
+      setEditingRentalId(null);
+      setRentalFormData({
+        vendorId: "",
+        itemName: "",
+        quantity: "1",
+        pricePerDay: "",
+        totalCost: "",
+        rentedDate: new Date().toISOString().split("T")[0],
+        endDate: "",
+        notes: "",
+        status: "RENTED",
+        returnedFromEventDate: "",
+        returnedToVendorDate: ""
+      });
+    } catch (error) {
+      console.error("Failed to save vendor rental", error);
+      alert("Failed to save rental record.");
+    } finally {
+      setRentalSubmitting(false);
+    }
+  };
 
   const handleCreateInvoice = (q: any) => {
     // Check readiness based on department
@@ -109,11 +197,12 @@ function InquiryDetailsContent() {
 
   const getStatusBadge = (status: string) => {
     switch(status) {
-      case 'INQUIRY': return 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-300';
-      case 'CONFIRMED': return 'bg-[#e6f4ea] dark:bg-green-900/30 text-[#137333] dark:text-green-400';
-      case 'IN_PROGRESS': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400';
-      case 'COMPLETED': return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400';
-      default: return 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-300';
+      case 'INQUIRY': return 'bg-slate-100 dark:bg-slate-850 text-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700';
+      case 'CONFIRMED': return 'bg-emerald-50 dark:bg-green-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/20';
+      case 'IN_PROGRESS': return 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border border-blue-200/20';
+      case 'COMPLETED': return 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400 border border-teal-200/20';
+      case 'CANCELLED': return 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-450 border border-red-200/20';
+      default: return 'bg-slate-150 text-slate-700';
     }
   };
   
@@ -243,9 +332,25 @@ function InquiryDetailsContent() {
         <div>
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{inquiry.inquiryNumber || `INQ-${inquiry.id}`}</h2>
-            <span className={`px-2.5 py-1 rounded-md text-xs font-semibold ${getStatusBadge(inquiry.status)}`}>
-              {inquiry.status.replace('_', ' ')}
-            </span>
+            <select
+              value={inquiry.status}
+              onChange={async (e) => {
+                const newStatus = e.target.value;
+                try {
+                  await api.put(`/inquiries/${id}/status`, { status: newStatus });
+                  setInquiry({ ...inquiry, status: newStatus });
+                } catch (error) {
+                  alert('Failed to update status');
+                }
+              }}
+              className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wide cursor-pointer transition-all outline-none bg-transparent ${getStatusBadge(inquiry.status)}`}
+            >
+              <option value="INQUIRY" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">INQUIRY</option>
+              <option value="CONFIRMED" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">CONFIRMED</option>
+              <option value="IN_PROGRESS" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">IN PROGRESS</option>
+              <option value="COMPLETED" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">COMPLETED</option>
+              <option value="CANCELLED" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">CANCELLED</option>
+            </select>
           </div>
           <p className="text-gray-500 dark:text-slate-400 text-sm mt-1">{inquiry.eventName}</p>
         </div>
@@ -346,16 +451,6 @@ function InquiryDetailsContent() {
           >
             Dispatch & Logistics
           </button>
-          {inquiry?.department === 'SOUND' && (
-            <button 
-              onClick={() => setActiveTab('sound-setup')}
-              className={`px-6 py-4 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
-                activeTab === 'sound-setup' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700'
-              }`}
-            >
-              <Speaker className="w-4 h-4" /> Sound Setup
-            </button>
-          )}
           {inquiry?.department === 'VIDEO' && (
             <>
               <button 
@@ -386,6 +481,14 @@ function InquiryDetailsContent() {
               <Monitor className="w-4 h-4" /> Office Tasks
             </button>
           )}
+          <button 
+            onClick={() => setActiveTab('vendor-rentals')}
+            className={`px-6 py-4 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
+              activeTab === 'vendor-rentals' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700'
+            }`}
+          >
+            <Truck className="w-4 h-4" /> Vendor Rentals
+          </button>
         </div>
         
         <div className="p-6">
@@ -675,15 +778,419 @@ function InquiryDetailsContent() {
           {activeTab === 'dispatch' && (
             <DispatchTab inquiryId={inquiry.id} department={inquiry.department} />
           )}
-          {activeTab === 'sound-setup' && inquiry?.department === 'SOUND' && (
-            <SoundSetupTab inquiryId={inquiry.id} />
-          )}
           {activeTab === 'video-setup' && inquiry?.department === 'VIDEO' && (
             <VideoSetupTab inquiryId={inquiry.id} />
           )}
           {activeTab === 'data-sheet' && inquiry?.department === 'VIDEO' && (
             <VideoDataSheetTab inquiryId={inquiry.id} />
           )}
+          {activeTab === 'office-tasks' && inquiry?.department === 'OFFICE' && (
+            <OfficeTasksTab inquiryId={inquiry.id} />
+          )}
+
+          {activeTab === 'vendor-rentals' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center pb-4 border-b border-slate-100 dark:border-slate-700/50">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                    <Truck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    Outside Hired Logistics & Rentals
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Manage vendor items booked for this specific event to fulfill stock shortage.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setEditingRentalId(null);
+                    setRentalFormData({
+                      vendorId: "",
+                      itemName: "",
+                      quantity: "1",
+                      pricePerDay: "",
+                      totalCost: "",
+                      rentedDate: new Date().toISOString().split("T")[0],
+                      endDate: "",
+                      notes: "",
+                      status: "RENTED",
+                      returnedFromEventDate: "",
+                      returnedToVendorDate: ""
+                    });
+                    setShowRentalModal(true);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center gap-2 shadow-sm transition-all hover:shadow active:scale-95"
+                >
+                  <Plus className="w-4 h-4" />
+                  Log Outside Vendor Rental
+                </button>
+              </div>
+
+              {/* Vendor Rentals Order Log Table */}
+              <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
+                      <th className="py-3.5 px-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Rented Item & Vendor</th>
+                      <th className="py-3.5 px-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Qty</th>
+                      <th className="py-3.5 px-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Price / Cost</th>
+                      <th className="py-3.5 px-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Rented Period</th>
+                      <th className="py-3.5 px-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Returned from Event</th>
+                      <th className="py-3.5 px-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Returned to Vendor</th>
+                      <th className="py-3.5 px-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {!inquiry.vendorRentals || inquiry.vendorRentals.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-8 text-center text-sm text-slate-400">
+                          No outside rentals logged for this inquiry/event. Click "+ Log Outside Vendor Rental" to add.
+                        </td>
+                      </tr>
+                    ) : (
+                      inquiry.vendorRentals.map((rental: any) => (
+                        <tr key={rental.id} className="hover:bg-slate-50/30 dark:hover:bg-slate-800/30 transition-colors">
+                          {/* Item & Vendor */}
+                          <td className="py-4 px-4">
+                            <div className="flex flex-col">
+                              <span className="font-bold text-slate-800 dark:text-white text-sm">{rental.itemName}</span>
+                              <span className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-0.5 flex items-center gap-1">
+                                🏢 {rental.vendor?.name || 'Unknown Vendor'}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Qty */}
+                          <td className="py-4 px-4 text-center">
+                            <span className="inline-flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold w-7 h-7 rounded-full">
+                              {rental.quantity}
+                            </span>
+                          </td>
+
+                          {/* Cost */}
+                          <td className="py-4 px-4">
+                            <div className="flex flex-col">
+                              <span className="font-extrabold text-slate-800 dark:text-slate-200 text-sm">
+                                ₹{Number(rental.totalCost).toLocaleString('en-IN')}
+                              </span>
+                              <span className="text-[10px] text-slate-400 mt-0.5">
+                                ₹{Number(rental.pricePerDay).toLocaleString('en-IN')} / day
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Period */}
+                          <td className="py-4 px-4">
+                            <div className="flex flex-col text-xs text-slate-600 dark:text-slate-350">
+                              <span className="font-semibold flex items-center gap-1">
+                                📅 {new Date(rental.rentedDate).toLocaleDateString()}
+                              </span>
+                              {rental.endDate && (
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
+                                  to {new Date(rental.endDate).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Returned from Event */}
+                          <td className="py-4 px-4 text-center">
+                            {rental.returnedFromEventDate ? (
+                              <span className="inline-flex items-center gap-1 bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400 px-2.5 py-1 rounded-full text-[10px] font-bold border border-green-200/30">
+                                <Check className="w-3 h-3" /> {new Date(rental.returnedFromEventDate).toLocaleDateString()}
+                              </span>
+                            ) : (
+                              <button
+                                onClick={async () => {
+                                  if (!confirm("Mark this item as returned from the event/venue?")) return;
+                                  try {
+                                    await api.patch(`/vendors/rentals/${rental.id}`, {
+                                      status: "RETURNED_FROM_EVENT",
+                                      returnedFromEventDate: new Date().toISOString().split("T")[0]
+                                    });
+                                    // reload
+                                    const { data } = await api.get(`/inquiries/${id}`);
+                                    setInquiry(data);
+                                  } catch (err) {
+                                    alert("Failed to update rental status");
+                                  }
+                                }}
+                                className="bg-slate-50 hover:bg-orange-50 border border-slate-200 hover:border-orange-200 dark:bg-slate-800 dark:border-slate-700 text-slate-500 hover:text-orange-600 px-2.5 py-1.5 rounded-xl text-[10px] font-bold transition-all"
+                              >
+                                Mark Returned
+                              </button>
+                            )}
+                          </td>
+
+                          {/* Returned to Vendor */}
+                          <td className="py-4 px-4 text-center">
+                            {rental.returnedToVendorDate ? (
+                              <span className="inline-flex items-center gap-1 bg-teal-50 dark:bg-teal-950/20 text-teal-700 dark:text-teal-400 px-2.5 py-1 rounded-full text-[10px] font-bold border border-teal-200/30">
+                                <Check className="w-3 h-3" /> {new Date(rental.returnedToVendorDate).toLocaleDateString()}
+                              </span>
+                            ) : (
+                              <button
+                                disabled={!rental.returnedFromEventDate}
+                                onClick={async () => {
+                                  if (!confirm("Confirm that this item has been sent back to the vendor?")) return;
+                                  try {
+                                    await api.patch(`/vendors/rentals/${rental.id}`, {
+                                      status: "RETURNED_TO_VENDOR",
+                                      returnedToVendorDate: new Date().toISOString().split("T")[0]
+                                    });
+                                    // reload
+                                    const { data } = await api.get(`/inquiries/${id}`);
+                                    setInquiry(data);
+                                  } catch (err) {
+                                    alert("Failed to update rental status");
+                                  }
+                                }}
+                                className={`px-2.5 py-1.5 rounded-xl text-[10px] font-bold transition-all border ${
+                                  rental.returnedFromEventDate
+                                    ? "bg-slate-50 hover:bg-emerald-50 border-slate-200 hover:border-emerald-200 dark:bg-slate-800 dark:border-slate-700 text-slate-500 hover:text-emerald-600"
+                                    : "bg-slate-100/50 border-slate-100 text-slate-300 dark:bg-slate-800/30 dark:border-slate-800 dark:text-slate-600 cursor-not-allowed"
+                                }`}
+                              >
+                                Return Vendor
+                              </button>
+                            )}
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-4 px-4 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => {
+                                  setEditingRentalId(rental.id);
+                                  setRentalFormData({
+                                    vendorId: String(rental.vendorId),
+                                    itemName: rental.itemName,
+                                    quantity: String(rental.quantity),
+                                    pricePerDay: String(rental.pricePerDay),
+                                    totalCost: String(rental.totalCost),
+                                    rentedDate: rental.rentedDate ? new Date(rental.rentedDate).toISOString().split("T")[0] : "",
+                                    endDate: rental.endDate ? new Date(rental.endDate).toISOString().split("T")[0] : "",
+                                    notes: rental.notes || "",
+                                    status: rental.status,
+                                    returnedFromEventDate: rental.returnedFromEventDate ? new Date(rental.returnedFromEventDate).toISOString().split("T")[0] : "",
+                                    returnedToVendorDate: rental.returnedToVendorDate ? new Date(rental.returnedToVendorDate).toISOString().split("T")[0] : ""
+                                  });
+                                  setShowRentalModal(true);
+                                }}
+                                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors"
+                                title="Edit Rental"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (!confirm("Are you sure you want to permanently delete this vendor rental record?")) return;
+                                  try {
+                                    await api.delete(`/vendors/rentals/${rental.id}`);
+                                    // reload
+                                    const { data } = await api.get(`/inquiries/${id}`);
+                                    setInquiry(data);
+                                  } catch (err) {
+                                    alert("Failed to delete rental record.");
+                                  }
+                                }}
+                                className="p-1.5 hover:bg-slate-105 dark:hover:bg-slate-800 text-slate-650 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors"
+                                title="Delete Rental"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Log Outside Vendor Rental Modal Form */}
+              {showRentalModal && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all animate-in fade-in duration-200">
+                  <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-xl w-full shadow-2xl border border-white/5 transform animate-in scale-in duration-200 max-h-[90vh] overflow-y-auto">
+                    <div className="flex justify-between items-start mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                          <Truck className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-extrabold text-slate-800 dark:text-white">
+                            {editingRentalId ? 'Edit Outside Vendor Rental' : 'Log Outside Vendor Rental'}
+                          </h3>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Log equipment hired from outside vendors and trace its return timeline.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowRentalModal(false)}
+                        className="p-1 hover:bg-slate-100 rounded-full text-slate-450 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleRentalSubmit} className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Select Vendor */}
+                        <div>
+                          <label className="block text-xs font-bold text-slate-450 uppercase mb-1.5 tracking-wider">Select Vendor *</label>
+                          <select
+                            required
+                            value={rentalFormData.vendorId}
+                            onChange={(e) => setRentalFormData({ ...rentalFormData, vendorId: e.target.value })}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
+                          >
+                            <option value="">-- Choose Vendor --</option>
+                            {vendors.map((vendor) => (
+                              <option key={vendor.id} value={vendor.id}>{vendor.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Category / Dept */}
+                        <div>
+                          <label className="block text-xs font-bold text-slate-450 uppercase mb-1.5 tracking-wider">Category / Dept</label>
+                          <input
+                            type="text"
+                            disabled
+                            value={inquiry.department || 'GENERAL'}
+                            className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-500 dark:text-slate-400 cursor-not-allowed uppercase"
+                          />
+                        </div>
+
+                        {/* Item Name */}
+                        <div className="col-span-1 md:col-span-2">
+                          <label className="block text-xs font-bold text-slate-450 uppercase mb-1.5 tracking-wider">Item Name *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. Video Switcher v-160HD"
+                            value={rentalFormData.itemName}
+                            onChange={(e) => setRentalFormData({ ...rentalFormData, itemName: e.target.value })}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
+                          />
+                        </div>
+
+                        {/* Quantity */}
+                        <div>
+                          <label className="block text-xs font-bold text-slate-450 uppercase mb-1.5 tracking-wider">Quantity *</label>
+                          <input
+                            type="number"
+                            required
+                            min="1"
+                            value={rentalFormData.quantity}
+                            onChange={(e) => {
+                              const qty = e.target.value;
+                              const price = rentalFormData.pricePerDay;
+                              const total = qty && price ? String(Number(qty) * Number(price)) : "";
+                              setRentalFormData({ ...rentalFormData, quantity: qty, totalCost: total });
+                            }}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
+                          />
+                        </div>
+
+                        {/* Price per Day */}
+                        <div>
+                          <label className="block text-xs font-bold text-slate-450 uppercase mb-1.5 tracking-wider">Price / Day (₹) *</label>
+                          <input
+                            type="number"
+                            required
+                            placeholder="1000"
+                            value={rentalFormData.pricePerDay}
+                            onChange={(e) => {
+                              const price = e.target.value;
+                              const qty = rentalFormData.quantity;
+                              const total = qty && price ? String(Number(qty) * Number(price)) : "";
+                              setRentalFormData({ ...rentalFormData, pricePerDay: price, totalCost: total });
+                            }}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
+                          />
+                        </div>
+
+                        {/* Total Cost */}
+                        <div className="col-span-1 md:col-span-2">
+                          <label className="block text-xs font-bold text-slate-450 uppercase mb-1.5 tracking-wider">Total Rental Cost (₹)</label>
+                          <input
+                            type="text"
+                            disabled
+                            value={rentalFormData.totalCost ? `₹${Number(rentalFormData.totalCost).toLocaleString('en-IN')}` : "₹0"}
+                            className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-xs font-extrabold text-slate-650 dark:text-slate-400 cursor-not-allowed"
+                          />
+                        </div>
+
+                        {/* Rented Date */}
+                        <div>
+                          <label className="block text-xs font-bold text-slate-450 uppercase mb-1.5 tracking-wider">Rented From (Start) *</label>
+                          <input
+                            type="date"
+                            required
+                            value={rentalFormData.rentedDate}
+                            onChange={(e) => setRentalFormData({ ...rentalFormData, rentedDate: e.target.value })}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
+                          />
+                        </div>
+
+                        {/* End Date */}
+                        <div>
+                          <label className="block text-xs font-bold text-slate-450 uppercase mb-1.5 tracking-wider">Rented To (End)</label>
+                          <input
+                            type="date"
+                            value={rentalFormData.endDate}
+                            onChange={(e) => setRentalFormData({ ...rentalFormData, endDate: e.target.value })}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20"
+                          />
+                        </div>
+
+                        {/* Deployed to Event */}
+                        <div className="col-span-1 md:col-span-2">
+                          <label className="block text-xs font-bold text-slate-450 uppercase mb-1.5 tracking-wider">Deployed to Event</label>
+                          <input
+                            type="text"
+                            disabled
+                            value={`${inquiry.inquiryNumber || `INQ-${inquiry.id}`} - ${inquiry.eventName}`}
+                            className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                          />
+                        </div>
+
+                        {/* Notes */}
+                        <div className="col-span-1 md:col-span-2">
+                          <label className="block text-xs font-bold text-slate-450 uppercase mb-1.5 tracking-wider">Internal Notes</label>
+                          <textarea
+                            placeholder="Rental terms, driver contact, or logistics details..."
+                            value={rentalFormData.notes}
+                            onChange={(e) => setRentalFormData({ ...rentalFormData, notes: e.target.value })}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 h-20 text-xs font-semibold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-700/50">
+                        <button
+                          type="button"
+                          onClick={() => setShowRentalModal(false)}
+                          className="flex-1 py-3 px-4 rounded-xl font-bold text-xs text-slate-500 hover:bg-slate-100 dark:text-slate-350 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={rentalSubmitting}
+                          className="flex-1 py-3 px-4 rounded-xl font-bold text-xs text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/10 transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          {rentalSubmitting ? 'Logging...' : editingRentalId ? 'Update Rental' : 'Log Rental'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === 'office-tasks' && inquiry?.department === 'OFFICE' && (
             <OfficeTasksTab inquiryId={inquiry.id} />
           )}

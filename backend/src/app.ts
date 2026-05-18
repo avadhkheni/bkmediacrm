@@ -2,14 +2,31 @@ import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import fs from 'fs';
+import path from 'path';
 
 const app: Application = express();
+
+// Ensure upload directories exist
+const uploadDirs = [
+  path.join(process.cwd(), 'uploads'),
+  path.join(process.cwd(), 'uploads', 'aadhar'),
+  path.join(process.cwd(), 'uploads', 'signed-copies')
+];
+uploadDirs.forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+}));
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use(morgan('dev'));
 
 // Routes

@@ -4,13 +4,13 @@ import autoTable from 'jspdf-autotable';
 
 
 const COLORS = {
-  primary: [26, 35, 126],    // Deep Indigo
-  secondary: [63, 81, 181],  // Indigo
-  accent: [255, 87, 34],     // Deep Orange
-  text: [33, 33, 33],        // Dark Grey
-  lightText: [117, 117, 117], // Medium Grey
-  border: [224, 224, 224],   // Light Grey
-  white: [255, 255, 255]
+  primary: [26, 35, 126] as [number, number, number],    // Deep Indigo
+  secondary: [63, 81, 181] as [number, number, number],  // Indigo
+  accent: [255, 87, 34] as [number, number, number],     // Deep Orange
+  text: [33, 33, 33] as [number, number, number],        // Dark Grey
+  lightText: [117, 117, 117] as [number, number, number], // Medium Grey
+  border: [224, 224, 224] as [number, number, number],   // Light Grey
+  white: [255, 255, 255] as [number, number, number]
 };
 
 const COMPANY_INFO = {
@@ -25,15 +25,16 @@ const numberToWords = (num: number): string => {
   const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
   const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
 
-  if ((num = num.toString()).length > 9) return 'overflow';
-  const n = ('000000000' + num).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+  const numStr = num.toString();
+  if (numStr.length > 9) return 'overflow';
+  const n = ('000000000' + numStr).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
   if (!n) return '';
   let str = '';
-  str += Number(n[1]) != 0 ? (a[Number(n[1])] || b[n[1][0]] + ' ' + a[n[1][1]]) + 'Crore ' : '';
-  str += Number(n[2]) != 0 ? (a[Number(n[2])] || b[n[2][0]] + ' ' + a[n[2][1]]) + 'Lakh ' : '';
-  str += Number(n[3]) != 0 ? (a[Number(n[3])] || b[n[3][0]] + ' ' + a[n[3][1]]) + 'Thousand ' : '';
-  str += Number(n[4]) != 0 ? (a[Number(n[4])] || b[n[4][0]] + ' ' + a[n[4][1]]) + 'Hundred ' : '';
-  str += Number(n[5]) != 0 ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0]] + ' ' + a[n[5][1]]) : '';
+  str += Number(n[1]) != 0 ? (a[Number(n[1])] || b[Number(n[1][0])] + ' ' + a[Number(n[1][1])]) + 'Crore ' : '';
+  str += Number(n[2]) != 0 ? (a[Number(n[2])] || b[Number(n[2][0])] + ' ' + a[Number(n[2][1])]) + 'Lakh ' : '';
+  str += Number(n[3]) != 0 ? (a[Number(n[3])] || b[Number(n[3][0])] + ' ' + a[Number(n[3][1])]) + 'Thousand ' : '';
+  str += Number(n[4]) != 0 ? (a[Number(n[4])] || b[Number(n[4][0])] + ' ' + a[Number(n[4][1])]) + 'Hundred ' : '';
+  str += Number(n[5]) != 0 ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[Number(n[5][0])] + ' ' + a[Number(n[5][1])]) : '';
   return str.trim();
 };
 
@@ -464,11 +465,26 @@ export const generateInvoicePDF = (invoice: any) => {
   doc.setLineWidth(0.5);
   doc.line(summaryX, finalY + 16, pageWidth - 15, finalY + 16);
 
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(COLORS.primary[0], COLORS.primary[1], COLORS.primary[2]);
-  doc.text('TOTAL AMOUNT:', summaryX, finalY + 23);
-  doc.text(formatCurrency(invoice.grossTotal), pageWidth - 15, finalY + 23, { align: 'right' });
+  doc.text('TOTAL AMOUNT:', summaryX, finalY + 22);
+  doc.text(formatCurrency(invoice.grossTotal), pageWidth - 15, finalY + 22, { align: 'right' });
+
+  // Add payments summary
+  const totalPaid = (invoice.payments || []).reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+  const balanceDue = Math.max(0, Number(invoice.grossTotal) - totalPaid);
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(34, 197, 94); // emerald-500 for total paid
+  doc.text('Total Paid to Date:', summaryX, finalY + 28);
+  doc.text(formatCurrency(totalPaid), pageWidth - 15, finalY + 28, { align: 'right' });
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(245, 158, 11); // amber-500 for balance due
+  doc.text('BALANCE DUE:', summaryX, finalY + 34);
+  doc.text(formatCurrency(balanceDue), pageWidth - 15, finalY + 34, { align: 'right' });
 
   // Amount in Words
   const amountInWords = `Rupees ${numberToWords(Number(invoice.grossTotal))} Only`;
@@ -476,16 +492,49 @@ export const generateInvoicePDF = (invoice: any) => {
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(COLORS.text[0], COLORS.text[1], COLORS.text[2]);
   const splitAmount = doc.splitTextToSize(`Amount in Words: ${amountInWords}`, pageWidth - summaryX - 15);
-  doc.text(splitAmount, 15, finalY + 28);
+  doc.text(splitAmount, 15, finalY + 38);
+
+  let currentY = finalY + 50;
+
+  // Payments receipt log table
+  const payments = invoice.payments || [];
+  if (payments.length > 0) {
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(COLORS.primary[0], COLORS.primary[1], COLORS.primary[2]);
+    doc.text('PAYMENT HISTORY & RECEIPTS:', 15, currentY);
+    
+    const pHead = [['Receipt Date', 'Payment Method', 'Reference / Txn ID', 'Amount Paid']];
+    const pBody = payments.map((p: any) => [
+      new Date(p.createdAt).toLocaleDateString(),
+      p.paymentMethod,
+      p.referenceNo || '-',
+      formatCurrency(Number(p.amount))
+    ]);
+
+    autoTable(doc, {
+      startY: currentY + 4,
+      head: pHead,
+      body: pBody,
+      theme: 'striped',
+      headStyles: { fillColor: [100, 116, 139], fontStyle: 'bold' }, // slate-500
+      styles: { fontSize: 8, cellPadding: 2.5 },
+      columnStyles: {
+        3: { halign: 'right', fontStyle: 'bold' }
+      }
+    });
+
+    currentY = (doc as any).lastAutoTable ? (doc as any).lastAutoTable.finalY + 12 : currentY + 30;
+  }
 
   // Bank Details
-  const bankY = finalY + 45;
+  const bankY = currentY;
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
+  doc.setTextColor(COLORS.text[0], COLORS.text[1], COLORS.text[2]);
   doc.text('BANK DETAILS:', 15, bankY);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(COLORS.text[0], COLORS.text[1], COLORS.text[2]);
   doc.text('Bank Name: HDFC Bank Ltd', 15, bankY + 7);
   doc.text('A/c Name: BK MEDIA', 15, bankY + 13);
   doc.text('A/c No: 50200012345678', 15, bankY + 19);

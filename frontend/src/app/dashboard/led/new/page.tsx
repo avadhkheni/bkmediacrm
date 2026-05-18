@@ -63,7 +63,7 @@ export default function NewLedStockPage() {
           pricingSqft: Number(data.pricingSqft),
         });
       }
-      router.push("/dashboard/led");
+      router.push("/dashboard/teams?tab=led");
     } catch (error) {
       console.error("Failed to add LED stock", error);
       alert("Failed to add LED stock");

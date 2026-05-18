@@ -92,6 +92,7 @@ model Inquiry {
   soundEventBookings    SoundEventBooking[]
   officeTasks           OfficeTask[]
   soundSetup            SoundSetup?
+  vendorRentals         VendorRental[]
 }
 
 // ─── QUOTATIONS ─────────────────────────────────────────
@@ -220,6 +221,37 @@ model Vendor {
   createdAt       DateTime @default(now())
 
   ledVendorArrangements LedVendorArrangement[]
+  products              VendorProduct[]
+  rentals               VendorRental[]
+}
+
+model VendorProduct {
+  id          Int      @id @default(autoincrement())
+  vendorId    Int
+  vendor      Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name        String
+  category    String   // VIDEO, LED, SOUND
+  ratePerDay  Decimal
+  createdAt   DateTime @default(now())
+}
+
+model VendorRental {
+  id                    Int       @id @default(autoincrement())
+  vendorId              Int
+  vendor                Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  itemName              String
+  quantity              Int       @default(1)
+  rentedDate            DateTime  @default(now())
+  endDate               DateTime?
+  pricePerDay           Decimal
+  totalCost             Decimal
+  inquiryId             Int?
+  inquiry               Inquiry?  @relation(fields: [inquiryId], references: [id], onDelete: SetNull)
+  returnedFromEventDate DateTime?
+  returnedToVendorDate  DateTime?
+  status                String    @default("RENTED") // RENTED, RETURNED_FROM_EVENT, RETURNED_TO_VENDOR
+  notes                 String?
+  createdAt             DateTime  @default(now())
 }
 
 // ─── EXPENSE REPORTS ────────────────────────────────────

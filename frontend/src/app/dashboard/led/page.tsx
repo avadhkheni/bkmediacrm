@@ -24,6 +24,13 @@ interface LedStock {
 
 export default function LedDepartmentPage() {
   const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.pathname === "/dashboard/led") {
+      router.replace("/dashboard/teams?tab=led");
+    }
+  }, [router]);
+
   const [stock, setStock] = useState<LedStock[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'stock' | 'calculator' | 'dispatch' | 'vendors'>('stock');

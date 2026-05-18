@@ -288,32 +288,30 @@ export default function InvoiceDetailPage() {
                   className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-bold outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Method *</label>
-                  <select 
-                    value={paymentForm.paymentMethod}
-                    onChange={(e) => setPaymentForm({...paymentForm, paymentMethod: e.target.value})}
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  >
-                    <option value="CASH">Cash</option>
-                    <option value="CHEQUE">Cheque</option>
-                    <option value="UPI">UPI</option>
-                    <option value="BANK_TRANSFER">Bank Transfer</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Type *</label>
-                  <select 
-                    value={paymentForm.paymentType}
-                    onChange={(e) => setPaymentForm({...paymentForm, paymentType: e.target.value})}
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  >
-                    <option value="PARTIAL">Partial</option>
-                    <option value="FULL">Full Payment</option>
-                    <option value="ADVANCE">Advance</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Method *</label>
+                <select 
+                  value={paymentForm.paymentMethod}
+                  onChange={(e) => setPaymentForm({...paymentForm, paymentMethod: e.target.value})}
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                >
+                  <option value="CASH">Cash</option>
+                  <option value="CHEQUE">Cheque</option>
+                  <option value="UPI">UPI</option>
+                  <option value="BANK_TRANSFER">Bank Transfer</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Type *</label>
+                <select 
+                  value={paymentForm.paymentType}
+                  onChange={(e) => setPaymentForm({...paymentForm, paymentType: e.target.value})}
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                >
+                  <option value="PARTIAL">Partial</option>
+                  <option value="FULL">Full Payment</option>
+                  <option value="ADVANCE">Advance</option>
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Reference No. (Optional)</label>

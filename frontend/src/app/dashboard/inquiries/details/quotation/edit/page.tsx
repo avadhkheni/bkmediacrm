@@ -1,9 +1,19 @@
 "use client";
 
+import { useState, useEffect, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import api from "@/lib/api";
 import SearchableSelect from "@/components/SearchableSelect";
+
+const LED_SIZE_PRESETS = [
+  { id: '12x10', name: '12 × 10 ft (Main Backdrop)', w: 12, h: 10 },
+  { id: '16x9', name: '16 × 9 ft (Widescreen)', w: 16, h: 9 },
+  { id: '10x8', name: '10 × 8 ft (Medium Backdrop)', w: 10, h: 8 },
+  { id: '8x6', name: '8 × 6 ft (Side Columns)', w: 8, h: 6 },
+  { id: '20x10', name: '20 × 10 ft (Large Concert)', w: 20, h: 10 },
+  { id: 'custom', name: '✏️ Custom size...', w: 0, h: 0 }
+];
 
 function EditQuotationContent() {
   const router = useRouter();
@@ -17,6 +27,7 @@ function EditQuotationContent() {
   const [videoEquipOptions, setVideoEquipOptions] = useState<any[]>([]);
   const [soundEquipOptions, setSoundEquipOptions] = useState<any[]>([]);
   const [ledRates, setLedRates] = useState<any[]>([]);
+  const [vendorsOptions, setVendorsOptions] = useState<any[]>([]);
 
   const { register, control, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm({
     defaultValues: {
@@ -38,13 +49,14 @@ function EditQuotationContent() {
     if (!inquiryId || !quotationId) return;
     const fetchData = async () => {
       try {
-        const [inqRes, qRes, ledRes, videoRes, soundRes, ratesRes] = await Promise.all([
+        const [inqRes, qRes, ledRes, videoRes, soundRes, ratesRes, vendorsRes] = await Promise.all([
           api.get(`/inquiries/${inquiryId}`),
           api.get(`/quotations/${quotationId}`),
           api.get('/led/stock'),
           api.get('/video/equipment'),
           api.get('/sound/equipment'),
-          api.get('/led/type-rates').catch(() => ({ data: [] }))
+          api.get('/led/type-rates').catch(() => ({ data: [] })),
+          api.get('/vendors').catch(() => ({ data: [] }))
         ]);
         
         setInquiry(inqRes.data);
@@ -52,20 +64,48 @@ function EditQuotationContent() {
         setVideoEquipOptions(videoRes.data || []);
         setSoundEquipOptions(soundRes.data || []);
         setLedRates(ratesRes.data || []);
+        setVendorsOptions(vendorsRes.data || []);
         
         const qData = qRes.data;
         
         // Combine all items with their categories
         const items = [
-          ...(qData.videoQuotationItems || []).map((it: any) => ({ ...it, category: 'VIDEO' })),
-          ...(qData.ledQuotationItems || []).map((it: any) => ({ ...it, category: 'LED' })),
-          ...(qData.soundQuotationItems || []).map((it: any) => ({ ...it, category: 'SOUND' })),
+          ...(qData.videoQuotationItems || []).map((it: any) => {
+            const isVendor = (it.equipmentType || '').startsWith('[VENDOR:');
+            return {
+              ...it,
+              category: 'VIDEO',
+              isVendorRented: isVendor,
+              vendorId: ''
+            };
+          }),
+          ...(qData.ledQuotationItems || []).map((it: any) => {
+            const isVendor = (it.ledType || '').startsWith('[VENDOR:');
+            return { 
+              ...it, 
+              category: 'LED',
+              presetSize: LED_SIZE_PRESETS.find(p => p.w === it.widthFt && p.h === it.heightFt)?.id || 'custom',
+              isVendorRented: isVendor,
+              vendorId: ''
+            };
+          }),
+          ...(qData.soundQuotationItems || []).map((it: any) => {
+            const isVendor = (it.equipmentType || '').startsWith('[VENDOR:');
+            return {
+              ...it,
+              category: 'SOUND',
+              isVendorRented: isVendor,
+              vendorId: ''
+            };
+          }),
           ...(qData.officeQuotationItems || []).map((it: any) => ({ 
             ...it, 
             category: 'OFFICE',
             equipmentType: it.serviceName,
             ratePerDay: it.rate,
-            nos: it.quantity
+            nos: it.quantity,
+            isVendorRented: false,
+            vendorId: ''
           })),
         ];
           
@@ -87,6 +127,22 @@ function EditQuotationContent() {
     const rate = ledRates.find((r: any) => r.ledType === ledType);
     if (rate) {
       setValue(`items.${index}.ratePerSqft`, rate.ratePerSqftPerDay);
+    } else {
+      const stock = ledStockOptions.find((s: any) => s.ledType === ledType);
+      if (stock) {
+        setValue(`items.${index}.ratePerSqft`, stock.pricingSqft || 0);
+      }
+    }
+  };
+
+  const handlePresetSizeChange = (index: number, val: string) => {
+    setValue(`items.${index}.presetSize`, val);
+    if (val !== 'custom') {
+      const preset = LED_SIZE_PRESETS.find(p => p.id === val);
+      if (preset) {
+        setValue(`items.${index}.widthFt`, preset.w);
+        setValue(`items.${index}.heightFt`, preset.h);
+      }
     }
   };
 
@@ -117,6 +173,8 @@ function EditQuotationContent() {
         items: data.items.map((item: any) => {
           const category = item.category || inquiry.department;
           const base = { ...item };
+          // Strip out temporary UI-only preset fields
+          delete base.presetSize;
           if (category === 'VIDEO' || category === 'SOUND' || category === 'OFFICE') {
             base.totalAmount = Number(item.ratePerDay) * Number(item.days) * Number(item.nos || 1);
           } else {
@@ -155,7 +213,7 @@ function EditQuotationContent() {
             <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Quotation Items</h3>
             <button 
               type="button" 
-              onClick={() => append({ category: inquiry.department, placeName: '', nos: 1, days: 1 })}
+              onClick={() => append({ category: inquiry.department, placeName: 'Main Venue', position: '', equipmentType: '', ratePerDay: 0, days: inquiry?.totalDays || 1, totalAmount: 0, heightFt: 10, widthFt: 12, nos: 1, ratePerSqft: 0, ledType: '', presetSize: '12x10', isVendorRented: false, vendorId: '' })}
               className="text-sm bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors"
             >
               + Add Row
@@ -167,12 +225,12 @@ function EditQuotationContent() {
               const currentCategory = watchItems[index]?.category || inquiry.department;
               
               return (
-                <div key={field.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 border border-slate-100 dark:border-slate-700 rounded-xl relative group">
+                <div key={field.id} className="grid grid-cols-1 md:grid-cols-[repeat(14,minmax(0,1fr))] gap-2 p-2.5 border border-slate-100 dark:border-slate-700 rounded-xl relative group items-end bg-slate-50/20 dark:bg-slate-800/10">
                   <div className="md:col-span-2">
-                    <label className="block text-xs text-slate-500 mb-1">Category</label>
+                    <label className="block text-[11px] text-slate-500 mb-1">Category</label>
                     <select 
                       {...register(`items.${index}.category`)}
-                      className="w-full text-sm p-2 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white"
+                      className="w-full text-xs p-1.5 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white cursor-pointer"
                     >
                       <option value="VIDEO">Video</option>
                       <option value="LED">LED Wall</option>
@@ -181,16 +239,16 @@ function EditQuotationContent() {
                     </select>
                   </div>
 
-                  <div className="md:col-span-2">
-                    <label className="block text-xs text-slate-500 mb-1">Place Name</label>
-                    <input {...register(`items.${index}.placeName`)} className="w-full text-sm p-2 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" placeholder="e.g. Stage" />
+                  <div className={currentCategory === 'LED' ? "md:col-span-1" : "md:col-span-2"}>
+                    <label className="block text-[11px] text-slate-500 mb-1">Place Name</label>
+                    <input {...register(`items.${index}.placeName`)} className="w-full text-xs p-1.5 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" placeholder="e.g. Stage" />
                   </div>
                   
                   {currentCategory === 'VIDEO' || currentCategory === 'SOUND' ? (
                     <>
-                      <div className="md:col-span-3">
+                      <div className="md:col-span-5">
+                        <label className="block text-[11px] text-slate-500 mb-1">Equipment / Service</label>
                         <SearchableSelect 
-                          label="Equipment / Service"
                           options={[
                             ...(currentCategory === 'VIDEO' ? videoEquipOptions : soundEquipOptions).map((eq: any) => ({
                               id: `${eq.name} (${eq.brand} ${eq.model})`,
@@ -202,85 +260,186 @@ function EditQuotationContent() {
                           value={watchItems[index]?.equipmentType}
                           onChange={(val) => handleVideoEquipChange(index, val.toString())}
                           placeholder="Select equipment..."
+                          compact
                         />
                       </div>
                       <div className="md:col-span-1">
-                        <label className="block text-xs text-slate-500 mb-1">Qty</label>
-                        <input type="number" min="1" {...register(`items.${index}.nos`)} className="w-full text-sm p-2 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" />
+                        <label className="block text-[11px] text-slate-500 mb-1">Qty</label>
+                        <input type="number" min="1" {...register(`items.${index}.nos`)} className="w-full text-xs p-1.5 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" />
                       </div>
-                      <div className="md:col-span-1">
-                        <label className="block text-xs text-slate-500 mb-1">Rate / Day</label>
-                        <input type="number" min="0" {...register(`items.${index}.ratePerDay`)} className="w-full text-sm p-2 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" />
+                      <div className="md:col-span-2">
+                        <label className="block text-[11px] text-slate-500 mb-1">Rate / Day</label>
+                        <input type="number" min="0" {...register(`items.${index}.ratePerDay`)} className="w-full text-xs p-1.5 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-[11px] text-slate-500 mb-1">Days</label>
+                        <input type="number" min="1" {...register(`items.${index}.days`)} className="w-full text-xs p-1.5 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" />
                       </div>
                     </>
                   ) : currentCategory === 'LED' ? (
                     <>
-                      <div className="md:col-span-2">
+                      <div className="md:col-span-3">
+                        <label className="block text-[11px] text-slate-500 mb-1">LED Type</label>
                         <SearchableSelect 
-                          label="LED Type"
                           options={[...new Set(ledStockOptions.map((s: any) => s.ledType))].map((type: any) => ({
                             id: type,
                             name: type,
-                            subtext: ledStockOptions.filter((s: any) => s.ledType === type).map((s: any) => s.companyName).join(', ')
+                            subtext: ledStockOptions.filter((s: any) => s.ledType === type).map((s: any) => `${s.companyName} (₹${s.pricingSqft}/sqft)`).join(', ')
                           }))}
                           value={watchItems[index]?.ledType || ''}
                           onChange={(val) => handleLedTypeChange(index, val.toString())}
                           placeholder="Select LED type..."
+                          compact
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-[11px] font-semibold text-slate-500 mb-1">Dimension Preset</label>
+                        <select
+                          value={watchItems[index]?.presetSize || 'custom'}
+                          onChange={(e) => handlePresetSizeChange(index, e.target.value)}
+                          className="w-full text-xs p-1.5 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white font-medium cursor-pointer"
+                        >
+                          {LED_SIZE_PRESETS.map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="md:col-span-1">
+                        <label className="block text-[11px] text-slate-500 mb-1">W(ft)</label>
+                        <input 
+                          type="number" 
+                          min="0.1" 
+                          step="any"
+                          readOnly={watchItems[index]?.presetSize !== 'custom'}
+                          {...register(`items.${index}.widthFt`, { min: 0 })} 
+                          className={`w-full text-xs p-1.5 rounded-md border border-slate-200 text-slate-900 dark:text-white ${
+                            watchItems[index]?.presetSize !== 'custom'
+                              ? 'bg-slate-100 dark:bg-slate-800 opacity-80 cursor-not-allowed font-semibold' 
+                              : 'bg-white dark:bg-slate-700'
+                          }`} 
                         />
                       </div>
                       <div className="md:col-span-1">
-                        <label className="block text-xs text-slate-500 mb-1">W(ft)</label>
-                        <input type="number" min="0" {...register(`items.${index}.widthFt`)} className="w-full text-sm p-2 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" />
+                        <label className="block text-[11px] text-slate-500 mb-1">H(ft)</label>
+                        <input 
+                          type="number" 
+                          min="0.1" 
+                          step="any"
+                          readOnly={watchItems[index]?.presetSize !== 'custom'}
+                          {...register(`items.${index}.heightFt`, { min: 0 })} 
+                          className={`w-full text-xs p-1.5 rounded-md border border-slate-200 text-slate-900 dark:text-white ${
+                            watchItems[index]?.presetSize !== 'custom'
+                              ? 'bg-slate-100 dark:bg-slate-800 opacity-80 cursor-not-allowed font-semibold' 
+                              : 'bg-white dark:bg-slate-700'
+                          }`} 
+                        />
                       </div>
                       <div className="md:col-span-1">
-                        <label className="block text-xs text-slate-500 mb-1">H(ft)</label>
-                        <input type="number" min="0" {...register(`items.${index}.heightFt`)} className="w-full text-sm p-2 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" />
+                        <label className="block text-[11px] text-slate-500 mb-1">Qty</label>
+                        <input type="number" min="1" {...register(`items.${index}.nos`)} className="w-full text-xs p-1.5 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-[11px] text-slate-500 mb-1">Rate/sqft</label>
+                        <input type="number" min="0" {...register(`items.${index}.ratePerSqft`)} className="w-full text-xs p-1.5 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" />
                       </div>
                       <div className="md:col-span-1">
-                        <label className="block text-xs text-slate-500 mb-1">Qty</label>
-                        <input type="number" min="1" {...register(`items.${index}.nos`)} className="w-full text-sm p-2 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" />
-                      </div>
-                      <div className="md:col-span-1">
-                        <label className="block text-xs text-slate-500 mb-1">Rate/sqft</label>
-                        <input type="number" min="0" {...register(`items.${index}.ratePerSqft`)} className="w-full text-sm p-2 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" />
+                        <label className="block text-[11px] text-slate-500 mb-1">Days</label>
+                        <input type="number" min="1" {...register(`items.${index}.days`)} className="w-full text-xs p-1.5 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" />
                       </div>
                     </>
                   ) : (
                     // OFFICE
                     <>
-                      <div className="md:col-span-4">
-                        <label className="block text-xs text-slate-500 mb-1">Service / Item Name</label>
-                        <input {...register(`items.${index}.equipmentType`)} className="w-full text-sm p-2 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" placeholder="e.g. Editing" />
+                      <div className="md:col-span-5">
+                        <label className="block text-[11px] text-slate-500 mb-1">Service / Item Name</label>
+                        <input {...register(`items.${index}.equipmentType`)} className="w-full text-xs p-1.5 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" placeholder="e.g. Editing" />
                       </div>
                       <div className="md:col-span-1">
-                        <label className="block text-xs text-slate-500 mb-1">Qty</label>
-                        <input type="number" min="1" {...register(`items.${index}.nos`)} className="w-full text-sm p-2 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" />
+                        <label className="block text-[11px] text-slate-500 mb-1">Qty</label>
+                        <input type="number" min="1" {...register(`items.${index}.nos`)} className="w-full text-xs p-1.5 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" />
                       </div>
-                      <div className="md:col-span-1">
-                        <label className="block text-xs text-slate-500 mb-1">Rate</label>
-                        <input type="number" min="0" {...register(`items.${index}.ratePerDay`)} className="w-full text-sm p-2 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" />
+                      <div className="md:col-span-2">
+                        <label className="block text-[11px] text-slate-500 mb-1">Rate</label>
+                        <input type="number" min="0" {...register(`items.${index}.ratePerDay`)} className="w-full text-xs p-1.5 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-[11px] text-slate-500 mb-1">Days</label>
+                        <input type="number" min="1" {...register(`items.${index}.days`)} className="w-full text-xs p-1.5 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" />
                       </div>
                     </>
                   )}
-                  
-                  <div className="md:col-span-1">
-                    <label className="block text-xs text-slate-500 mb-1">Days</label>
-                    <input type="number" min="1" {...register(`items.${index}.days`)} className="w-full text-sm p-2 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" />
-                  </div>
-                  
-                  <div className="md:col-span-1 text-right self-end pb-2">
-                    <p className="text-xs text-slate-400">Total</p>
-                    <p className="text-sm font-bold dark:text-white">
-                      ₹{(() => {
-                        const item = watchItems[index];
-                        if (currentCategory === 'VIDEO' || currentCategory === 'SOUND' || currentCategory === 'OFFICE') {
-                          return (Number(item?.ratePerDay || 0) * Number(item?.days || 1) * Number(item?.nos || 1)).toLocaleString();
-                        } else {
-                          return (Number(item?.widthFt || 0) * Number(item?.heightFt || 0) * Number(item?.nos || 1) * Number(item?.ratePerSqft || 0) * Number(item?.days || 1)).toLocaleString();
-                        }
-                      })()}
-                    </p>
-                  </div>
+
+                  {/* Vendor Sourcing selection panel */}
+                  {(currentCategory === 'VIDEO' || currentCategory === 'SOUND' || currentCategory === 'LED') && (
+                    <div className="col-span-1 md:col-span-14 mt-2 bg-blue-50/20 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-750 flex flex-wrap gap-4 items-center w-full">
+                      <label className="flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          {...register(`items.${index}.isVendorRented`)}
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        Rent from Outside Supplier?
+                      </label>
+
+                      {watchItems[index]?.isVendorRented && (
+                        <div className="flex gap-4 items-center flex-1 min-w-[280px]">
+                          <div className="flex-1">
+                            <select
+                              {...register(`items.${index}.vendorId`)}
+                              onChange={(e) => {
+                                const vId = e.target.value;
+                                setValue(`items.${index}.vendorId`, vId);
+                                if (currentCategory === 'LED') {
+                                  setValue(`items.${index}.ledType`, '');
+                                  setValue(`items.${index}.ratePerSqft`, 0);
+                                } else {
+                                  setValue(`items.${index}.equipmentType`, '');
+                                  setValue(`items.${index}.ratePerDay`, 0);
+                                }
+                              }}
+                              className="w-full text-xs p-1.5 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white font-medium"
+                            >
+                              <option value="">-- Select Registered Supplier --</option>
+                              {vendorsOptions.filter((v: any) => v.department === currentCategory).map((v: any) => (
+                                <option key={v.id} value={v.id}>{v.name} ({v.specialization || 'Supplier'})</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {watchItems[index]?.vendorId && (
+                            <div className="flex-1">
+                              <select
+                                onChange={(e) => {
+                                  const prodId = e.target.value;
+                                  if (!prodId) return;
+                                  const chosenVendor = vendorsOptions.find((v: any) => v.id === Number(watchItems[index]?.vendorId));
+                                  const prod = chosenVendor?.products?.find((p: any) => p.id === Number(prodId));
+                                  if (prod) {
+                                    if (currentCategory === 'LED') {
+                                      setValue(`items.${index}.ledType`, `[VENDOR: ${chosenVendor.name}] ${prod.name}`);
+                                      setValue(`items.${index}.ratePerSqft`, Number(prod.ratePerDay));
+                                    } else {
+                                      setValue(`items.${index}.equipmentType`, `[VENDOR: ${chosenVendor.name}] ${prod.name}`);
+                                      setValue(`items.${index}.ratePerDay`, Number(prod.ratePerDay));
+                                    }
+                                  }
+                                }}
+                                className="w-full text-xs p-1.5 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white font-medium"
+                              >
+                                <option value="">-- Choose Supplier Rental Item --</option>
+                                {(vendorsOptions.find((v: any) => v.id === Number(watchItems[index]?.vendorId))?.products || [])
+                                  .filter((p: any) => p.category === currentCategory)
+                                  .map((p: any) => (
+                                    <option key={p.id} value={p.id}>{p.name} (₹{p.ratePerDay}/day)</option>
+                                  ))
+                                }
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <button 
                     type="button" 

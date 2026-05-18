@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
-import { HardDrive, Plus, Save, Download, Video, Calendar } from "lucide-react";
+import { HardDrive, Plus, Save, Download, Video, Calendar, Trash2 } from "lucide-react";
 
 interface VideoDataSheetTabProps {
   inquiryId: number;
@@ -165,7 +165,7 @@ export default function VideoDataSheetTab({ inquiryId }: VideoDataSheetTabProps)
             <form onSubmit={handleCreateSheet} className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-blue-200 dark:border-blue-900/30 shadow-sm space-y-3">
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1">Day No.</label>
-                <input type="number" required min="1" value={newSheetForm.dayNumber} onChange={e => setNewSheetForm({...newSheetForm, dayNumber: e.target.value})} className="w-full text-sm p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white" />
+                <input type="number" required min="1" value={newSheetForm.dayNumber} onChange={e => setNewSheetForm({...newSheetForm, dayNumber: parseInt(e.target.value) || 1})} className="w-full text-sm p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1">Date</label>

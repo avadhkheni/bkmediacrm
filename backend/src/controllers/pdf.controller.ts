@@ -7,6 +7,7 @@ import {
   generateLedClearSizePdf,
   generateDispatchPdf,
   generateExpenseReportPdf,
+  generateVendorRentalsPdf,
 } from '../services/pdf.service';
 
 export const getQuotationPdf = async (req: Request, res: Response) => {
@@ -83,5 +84,16 @@ export const getExpenseReportPdf = async (req: Request, res: Response) => {
     res.send(pdf);
   } catch (error: any) {
     res.status(error.message === 'Expense report not found' ? 404 : 500).json({ message: error.message || 'Error generating PDF' });
+  }
+};
+
+export const getVendorRentalsPdf = async (req: Request, res: Response) => {
+  try {
+    const pdf = await generateVendorRentalsPdf();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename=vendor-rentals-report.pdf');
+    res.send(pdf);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Error generating PDF' });
   }
 };

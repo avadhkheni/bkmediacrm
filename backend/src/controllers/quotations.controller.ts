@@ -228,8 +228,8 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
 
     const existing = await prisma.quotation.findUnique({ where: { id: Number(id) } });
     if (!existing) return res.status(404).json({ message: 'Quotation not found' });
-    if (existing.status !== 'DRAFT' && existing.status !== 'APPROVED') {
-      return res.status(400).json({ message: 'Only DRAFT or APPROVED quotations can be edited' });
+    if (existing.status !== 'DRAFT' && existing.status !== 'APPROVED' && existing.status !== 'REJECTED') {
+      return res.status(400).json({ message: 'Only DRAFT, APPROVED, or REJECTED quotations can be edited' });
     }
 
     const gst = calculateGst(Number(subtotal));
@@ -244,8 +244,16 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
           sgstAmount: gst.sgst,
           totalAmount: gst.total,
           notes,
+          ...(existing.status === 'REJECTED' && { status: 'DRAFT' })
         }
       });
+
+      if (existing.status === 'REJECTED') {
+        await tx.inquiry.update({
+          where: { id: q.inquiryId },
+          data: { status: 'QUOTATION_DRAFT' }
+        });
+      }
 
       // If items provided, delete old and recreate
       if (items && items.length > 0) {
@@ -589,7 +597,7 @@ export const uploadSignedCopy = async (req: any, res: Response) => {
 
     const updated = await prisma.quotation.update({
       where: { id: Number(id) },
-      data: { signedCopyPath: file.path }
+      data: { signedCopyPath: file.path.replace(/\\/g, '/') }
     });
 
     res.json({ message: 'Signed copy uploaded successfully', signedCopyPath: updated.signedCopyPath });

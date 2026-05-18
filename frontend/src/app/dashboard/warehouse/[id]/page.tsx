@@ -14,6 +14,7 @@ interface WarehouseDetail {
   status: string;
   videoStock: any[];
   ledStock: any[];
+  soundStock?: any[];
 }
 
 export default function WarehouseDetailsPage({ params }: { params: { id: string } }) {
@@ -54,7 +55,7 @@ export default function WarehouseDetailsPage({ params }: { params: { id: string 
       name: v.name,
       category: v.category,
       brand: v.brand,
-      totalQuantity: 1, // Individual serialized items are usually qty 1
+      totalQuantity: v.totalQuantity || 1, // Display actual video stock total quantity
       status: v.status,
       type: 'VIDEO'
     })),
@@ -66,6 +67,15 @@ export default function WarehouseDetailsPage({ params }: { params: { id: string 
       totalQuantity: l.totalCabinets,
       status: l.status,
       type: 'LED'
+    })),
+    ...(warehouse.soundStock || []).map(s => ({
+      id: `snd-${s.id}`,
+      name: s.name,
+      category: s.category,
+      brand: s.brand,
+      totalQuantity: s.totalQuantity || 1, // Display actual sound stock total quantity
+      status: s.status,
+      type: 'SOUND'
     }))
   ];
 
@@ -162,7 +172,9 @@ export default function WarehouseDetailsPage({ params }: { params: { id: string 
                   <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="py-4 px-6">
                       <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                        item.type === 'VIDEO' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400' : 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400'
+                        item.type === 'VIDEO' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400' :
+                        item.type === 'LED' ? 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400' :
+                        'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
                       }`}>
                         {item.type}
                       </span>

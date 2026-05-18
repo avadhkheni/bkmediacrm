@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { 
   Speaker, 
@@ -32,10 +33,19 @@ const soundCategories = [
 ];
 
 export default function SoundDashboard() {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.pathname === "/dashboard/sound") {
+      router.replace("/dashboard/teams?tab=sound");
+    }
+  }, [router]);
+
   const [activeTab, setActiveTab] = useState<'inventory' | 'vendors'>('inventory');
   const [equipment, setEquipment] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterCategory, setFilterCategory] = useState("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -119,20 +129,15 @@ export default function SoundDashboard() {
     }
   };
 
-  const filteredEquip = equipment.filter(e => 
-    e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    e.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const stats = {
-    totalSpeakers: equipment.filter(e => e.category === 'Speakers').reduce((sum, e) => sum + e.totalQuantity, 0),
-    totalAmps: equipment.filter(e => e.category === 'Amplifiers').reduce((sum, e) => sum + e.totalQuantity, 0),
-    totalMics: equipment.filter(e => e.category === 'Microphones').reduce((sum, e) => sum + e.totalQuantity, 0),
-    inUse: equipment.reduce((sum, e) => sum + e.inUseQuantity, 0)
-  };
+  const filteredEquip = equipment.filter(e => {
+    const matchesSearch = e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          e.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = filterCategory === "All" || !filterCategory ? true : e.category === filterCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
-    <div className="p-6 space-y-8 max-w-[1600px] mx-auto">
+    <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -150,33 +155,6 @@ export default function SoundDashboard() {
             <Plus className="w-4 h-4" /> Add Equipment
           </button>
         </div>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[
-          { label: "Main PA Units", value: stats.totalSpeakers, icon: Speaker, color: "bg-blue-500", shadow: "shadow-blue-500/20" },
-          { label: "Amplifiers", value: stats.totalAmps, icon: Zap, color: "bg-amber-500", shadow: "shadow-amber-500/20" },
-          { label: "Microphones", value: stats.totalMics, icon: Mic2, color: "bg-purple-500", shadow: "shadow-purple-500/20" },
-          { label: "Active Deployments", value: stats.inUse, icon: Activity, color: "bg-emerald-500", shadow: "shadow-emerald-500/20" },
-        ].map((stat, i) => (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            key={stat.label} 
-            className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm"
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div className={`p-3 ${stat.color} rounded-2xl text-white ${stat.shadow}`}>
-                <stat.icon className="w-6 h-6" />
-              </div>
-              <span className="text-[10px] font-semibold uppercase text-slate-400 bg-slate-50 dark:bg-slate-900 px-2 py-1 rounded-lg">Realtime</span>
-            </div>
-            <h3 className="text-3xl font-bold text-slate-800 dark:text-white">{stat.value}</h3>
-            <p className="text-sm font-semibold text-slate-500 mt-1">{stat.label}</p>
-          </motion.div>
-        ))}
       </div>
 
 
@@ -214,12 +192,17 @@ export default function SoundDashboard() {
             />
           </div>
           <div className="flex gap-2">
-             <button className="p-2.5 rounded-xl border border-slate-100 dark:border-slate-700 text-slate-500 hover:bg-slate-50 transition-all">
-               <Filter className="w-5 h-5" />
-             </button>
-             <button className="p-2.5 rounded-xl border border-slate-100 dark:border-slate-700 text-slate-500 hover:bg-slate-50 transition-all">
-               <MoreVertical className="w-5 h-5" />
-             </button>
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl py-2 px-3 text-sm font-medium outline-none focus:ring-4 focus:ring-blue-500/10 transition-all cursor-pointer"
+            >
+              {soundCategories.map((cat) => (
+                <option key={cat.value} value={cat.value} className="bg-white dark:bg-slate-800 text-slate-800 dark:text-white">
+                  {cat.label === "All" ? "All Categories" : cat.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

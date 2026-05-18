@@ -17,6 +17,7 @@ interface SearchableSelectProps {
   label?: string;
   disabled?: boolean;
   error?: string;
+  compact?: boolean;
 }
 
 export default function SearchableSelect({
@@ -26,7 +27,8 @@ export default function SearchableSelect({
   placeholder = "Select an option...",
   label,
   disabled = false,
-  error
+  error,
+  compact = false
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -60,7 +62,8 @@ export default function SearchableSelect({
       <div
         onClick={() => !disabled && setIsOpen(!isOpen)}
         className={`
-          relative w-full flex items-center justify-between px-4 py-2 rounded-md border cursor-pointer transition-all
+          relative w-full flex items-center justify-between rounded-md border cursor-pointer transition-all
+          ${compact ? 'px-2 py-1.5 text-xs' : 'px-4 py-2 text-sm'}
           ${disabled ? 'bg-slate-50 dark:bg-slate-800/50 cursor-not-allowed opacity-60' : 'bg-white dark:bg-slate-700 hover:border-blue-400'}
           ${error ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'}
           ${isOpen ? 'ring-2 ring-blue-500/20 border-blue-500' : ''}
@@ -69,7 +72,7 @@ export default function SearchableSelect({
         <span className={`block truncate ${!selectedOption ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>
           {selectedOption ? selectedOption.name : placeholder}
         </span>
-        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''} ${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'}`} />
       </div>
 
       {isOpen && (

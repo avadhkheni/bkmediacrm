@@ -62,6 +62,8 @@ function DispatchView() {
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [videoStock, setVideoStock] = useState<any[]>([]);
   const [ledStock, setLedStock] = useState<any[]>([]);
+  const [soundStock, setSoundStock] = useState<any[]>([]);
+  const [inquiries, setInquiries] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
@@ -89,14 +91,18 @@ function DispatchView() {
 
   const fetchData = async () => {
     try {
-      const [whRes, vidRes, ledRes] = await Promise.all([
+      const [whRes, vidRes, ledRes, sndRes, inqRes] = await Promise.all([
         api.get("/warehouse"),
         api.get("/video/equipment?status=AVAILABLE"),
-        api.get("/led/stock")
+        api.get("/led/stock"),
+        api.get("/sound/equipment?status=AVAILABLE"),
+        api.get("/inquiries")
       ]);
-      setWarehouses(whRes.data);
-      setVideoStock(vidRes.data);
-      setLedStock(ledRes.data.filter((l: any) => l.status === 'AVAILABLE'));
+      setWarehouses(whRes.data || []);
+      setVideoStock(vidRes.data || []);
+      setLedStock((ledRes.data || []).filter((l: any) => l.status === 'AVAILABLE'));
+      setSoundStock(sndRes.data || []);
+      setInquiries((inqRes.data || []).filter((i: any) => i.status === 'CONFIRMED' || i.status === 'APPROVED'));
     } catch (error) {
       console.error("Failed to load data", error);
     }
@@ -117,21 +123,22 @@ function DispatchView() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.equipmentId || !form.warehouseId || !form.inquiryId) {
-      addToast("Please select Inquiry ID, Warehouse, and Equipment", "error");
+      addToast("Please select Inquiry, Warehouse, and Equipment", "error");
       return;
     }
     
     setSubmitting(true);
     try {
       const itemToDispatch = {
-        videoEquipId: form.equipmentType === 'VIDEO' ? form.equipmentId : null,
-        ledStockId: form.equipmentType === 'LED' ? form.equipmentId : null,
-        warehouseId: form.warehouseId,
-        quantity: form.quantity
+        videoEquipId: form.equipmentType === 'VIDEO' ? Number(form.equipmentId) : null,
+        ledStockId: form.equipmentType === 'LED' ? Number(form.equipmentId) : null,
+        soundEquipId: form.equipmentType === 'SOUND' ? Number(form.equipmentId) : null,
+        warehouseId: Number(form.warehouseId),
+        quantity: Number(form.quantity)
       };
 
       await api.post("/warehouse/dispatch", {
-        inquiryId: form.inquiryId,
+        inquiryId: Number(form.inquiryId),
         staffName: form.staffName,
         notes: form.notes,
         items: [itemToDispatch],
@@ -153,15 +160,20 @@ function DispatchView() {
       {/* Basic Details */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Inquiry / Event ID *</label>
-          <input
-            type="number"
+          <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Select Approved Inquiry *</label>
+          <select
             required
             value={form.inquiryId}
             onChange={(e) => setForm({ ...form, inquiryId: e.target.value })}
-            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-            placeholder="e.g. 102"
-          />
+            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all appearance-none"
+          >
+            <option value="">Select Inquiry...</option>
+            {inquiries.map((inq: any) => (
+              <option key={inq.id} value={String(inq.id)}>
+                #{inq.inquiryNumber || inq.id} - {inq.eventName} ({inq.client?.name || "No Client"})
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Staff Name *</label>
@@ -187,11 +199,11 @@ function DispatchView() {
             <select
               required
               value={form.warehouseId}
-              onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}
+              onChange={(e) => setForm({ ...form, warehouseId: e.target.value, equipmentId: "" })}
               className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium appearance-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
             >
               <option value="">Select Warehouse</option>
-              {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+              {warehouses.map(w => <option key={w.id} value={String(w.id)}>{w.name}</option>)}
             </select>
           </div>
           <div>
@@ -203,9 +215,10 @@ function DispatchView() {
             >
               <option value="VIDEO">Video Equipment</option>
               <option value="LED">LED Stock</option>
+              <option value="SOUND">Sound Equipment</option>
             </select>
           </div>
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Select Equipment *</label>
             <select
               required
@@ -214,14 +227,41 @@ function DispatchView() {
               className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium appearance-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
             >
               <option value="">Select Item...</option>
-              {form.equipmentType === 'VIDEO' ? (
-                videoStock.filter(v => form.warehouseId ? v.warehouseId === Number(form.warehouseId) : true).map(v => (
-                  <option key={v.id} value={v.id}>{v.name} ({v.totalQuantity} total)</option>
-                ))
-              ) : (
-                ledStock.filter(l => form.warehouseId ? l.warehouseId === Number(form.warehouseId) : true).map(l => (
-                  <option key={l.id} value={l.id}>{l.companyName} {l.ledType} - {l.totalCabinets} avail.</option>
-                ))
+              {form.equipmentType === 'VIDEO' && (
+                videoStock
+                  .filter(v => form.warehouseId && v.warehouseId === Number(form.warehouseId))
+                  .map(v => {
+                    const whName = warehouses.find(w => w.id === v.warehouseId)?.name || "Unassigned Warehouse";
+                    return (
+                      <option key={v.id} value={String(v.id)}>
+                        {v.name} ({v.availableQuantity} avail / {v.totalQuantity} total) [{whName}]
+                      </option>
+                    );
+                  })
+              )}
+              {form.equipmentType === 'LED' && (
+                ledStock
+                  .filter(l => form.warehouseId && l.warehouseId === Number(form.warehouseId))
+                  .map(l => {
+                    const whName = warehouses.find(w => w.id === l.warehouseId)?.name || "Unassigned Warehouse";
+                    return (
+                      <option key={l.id} value={String(l.id)}>
+                        {l.companyName} {l.ledType} ({l.availableQuantity} avail / {l.totalCabinets} total) [{whName}]
+                      </option>
+                    );
+                  })
+              )}
+              {form.equipmentType === 'SOUND' && (
+                soundStock
+                  .filter(s => form.warehouseId && s.warehouseId === Number(form.warehouseId))
+                  .map(s => {
+                    const whName = warehouses.find(w => w.id === s.warehouseId)?.name || "Unassigned Warehouse";
+                    return (
+                      <option key={s.id} value={String(s.id)}>
+                        {s.name} ({s.availableQuantity} avail / {s.totalQuantity} total) [{whName}]
+                      </option>
+                    );
+                  })
               )}
             </select>
           </div>
@@ -295,6 +335,8 @@ function ReturnView() {
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [videoStock, setVideoStock] = useState<any[]>([]);
   const [ledStock, setLedStock] = useState<any[]>([]);
+  const [soundStock, setSoundStock] = useState<any[]>([]);
+  const [inquiries, setInquiries] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
@@ -323,16 +365,18 @@ function ReturnView() {
 
   const fetchData = async () => {
     try {
-      // NOTE: For returns, we don't strict filter to "IN_USE" exclusively because quantities mean partially available items might be in use
-      const [whRes, vidRes, ledRes] = await Promise.all([
+      const [whRes, vidRes, ledRes, sndRes, inqRes] = await Promise.all([
         api.get("/warehouse"),
         api.get("/video/equipment"), 
-        api.get("/led/stock") 
+        api.get("/led/stock"),
+        api.get("/sound/equipment"),
+        api.get("/inquiries")
       ]);
-      setWarehouses(whRes.data);
-      // Filter out items that have 0 in use
-      setVideoStock(vidRes.data.filter((v: any) => v.inUseQuantity > 0 || v.status === 'IN_USE'));
-      setLedStock(ledRes.data.filter((l: any) => l.inUseQuantity > 0 || l.status === 'IN_USE'));
+      setWarehouses(whRes.data || []);
+      setVideoStock((vidRes.data || []).filter((v: any) => v.inUseQuantity > 0 || v.status === 'IN_USE'));
+      setLedStock((ledRes.data || []).filter((l: any) => l.inUseQuantity > 0 || l.status === 'IN_USE'));
+      setSoundStock((sndRes.data || []).filter((s: any) => s.inUseQuantity > 0 || s.status === 'IN_USE'));
+      setInquiries(inqRes.data || []);
     } catch (error) {
       console.error("Failed to load data", error);
     }
@@ -353,22 +397,23 @@ function ReturnView() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.equipmentId || !form.warehouseId || !form.inquiryId) {
-      addToast("Please select Inquiry ID, Warehouse, and Equipment", "error");
+      addToast("Please select Inquiry, Warehouse, and Equipment", "error");
       return;
     }
     
     setSubmitting(true);
     try {
       const itemToReturn = {
-        videoEquipId: form.equipmentType === 'VIDEO' ? form.equipmentId : null,
-        ledStockId: form.equipmentType === 'LED' ? form.equipmentId : null,
-        warehouseId: form.warehouseId,
-        quantity: form.quantity,
+        videoEquipId: form.equipmentType === 'VIDEO' ? Number(form.equipmentId) : null,
+        ledStockId: form.equipmentType === 'LED' ? Number(form.equipmentId) : null,
+        soundEquipId: form.equipmentType === 'SOUND' ? Number(form.equipmentId) : null,
+        warehouseId: Number(form.warehouseId),
+        quantity: Number(form.quantity),
         isDamaged: form.isDamaged
       };
 
       await api.post("/warehouse/return", {
-        inquiryId: form.inquiryId,
+        inquiryId: Number(form.inquiryId),
         staffName: form.staffName,
         notes: form.notes,
         penaltyAmount: form.penaltyAmount,
@@ -391,15 +436,20 @@ function ReturnView() {
       {/* Basic Details */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Inquiry / Event ID *</label>
-          <input
-            type="number"
+          <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Select Dispatched Inquiry *</label>
+          <select
             required
             value={form.inquiryId}
             onChange={(e) => setForm({ ...form, inquiryId: e.target.value })}
-            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-            placeholder="e.g. 102"
-          />
+            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all appearance-none"
+          >
+            <option value="">Select Inquiry...</option>
+            {inquiries.map((inq: any) => (
+              <option key={inq.id} value={String(inq.id)}>
+                #{inq.inquiryNumber || inq.id} - {inq.eventName} ({inq.client?.name || "No Client"})
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Staff Name *</label>
@@ -425,11 +475,11 @@ function ReturnView() {
             <select
               required
               value={form.warehouseId}
-              onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}
+              onChange={(e) => setForm({ ...form, warehouseId: e.target.value, equipmentId: "" })}
               className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
             >
               <option value="">Select Warehouse</option>
-              {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+              {warehouses.map(w => <option key={w.id} value={String(w.id)}>{w.name}</option>)}
             </select>
           </div>
           <div>
@@ -441,9 +491,10 @@ function ReturnView() {
             >
               <option value="VIDEO">Video Equipment</option>
               <option value="LED">LED Stock</option>
+              <option value="SOUND">Sound Equipment</option>
             </select>
           </div>
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Select Dispatched Equipment *</label>
             <select
               required
@@ -452,14 +503,41 @@ function ReturnView() {
               className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
             >
               <option value="">Select Item...</option>
-              {form.equipmentType === 'VIDEO' ? (
-                videoStock.filter(v => form.warehouseId ? v.warehouseId === Number(form.warehouseId) : true).map(v => (
-                  <option key={v.id} value={v.id}>{v.name} ({v.inUseQuantity || v.totalQuantity} dispatched)</option>
-                ))
-              ) : (
-                ledStock.filter(l => form.warehouseId ? l.warehouseId === Number(form.warehouseId) : true).map(l => (
-                  <option key={l.id} value={l.id}>{l.companyName} {l.ledType}</option>
-                ))
+              {form.equipmentType === 'VIDEO' && (
+                videoStock
+                  .filter(v => form.warehouseId && v.warehouseId === Number(form.warehouseId))
+                  .map(v => {
+                    const whName = warehouses.find(w => w.id === v.warehouseId)?.name || "Unassigned Warehouse";
+                    return (
+                      <option key={v.id} value={String(v.id)}>
+                        {v.name} ({v.inUseQuantity || 0} dispatched) [{whName}]
+                      </option>
+                    );
+                  })
+              )}
+              {form.equipmentType === 'LED' && (
+                ledStock
+                  .filter(l => form.warehouseId && l.warehouseId === Number(form.warehouseId))
+                  .map(l => {
+                    const whName = warehouses.find(w => w.id === l.warehouseId)?.name || "Unassigned Warehouse";
+                    return (
+                      <option key={l.id} value={String(l.id)}>
+                        {l.companyName} {l.ledType} ({l.inUseQuantity || 0} dispatched) [{whName}]
+                      </option>
+                    );
+                  })
+              )}
+              {form.equipmentType === 'SOUND' && (
+                soundStock
+                  .filter(s => form.warehouseId && s.warehouseId === Number(form.warehouseId))
+                  .map(s => {
+                    const whName = warehouses.find(w => w.id === s.warehouseId)?.name || "Unassigned Warehouse";
+                    return (
+                      <option key={s.id} value={String(s.id)}>
+                        {s.name} ({s.inUseQuantity || 0} dispatched) [{whName}]
+                      </option>
+                    );
+                  })
               )}
             </select>
           </div>

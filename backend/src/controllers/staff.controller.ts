@@ -188,8 +188,8 @@ export const uploadAadhar = async (req: any, res: Response) => {
     if (!existing) return res.status(404).json({ message: 'Staff not found' });
 
     const updateData: any = {};
-    if (files?.front?.[0]) updateData.aadharFront = files.front[0].path;
-    if (files?.back?.[0]) updateData.aadharBack = files.back[0].path;
+    if (files?.front?.[0]) updateData.aadharFront = files.front[0].path.replace(/\\/g, '/');
+    if (files?.back?.[0]) updateData.aadharBack = files.back[0].path.replace(/\\/g, '/');
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ message: 'No files uploaded' });

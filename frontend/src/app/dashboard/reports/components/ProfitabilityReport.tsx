@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  AreaChart, Area
+  AreaChart, Area, Cell
 } from 'recharts';
 import { 
   TrendingUp, 

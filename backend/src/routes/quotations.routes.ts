@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as QuotationsController from '../controllers/quotations.controller';
 import { authenticate } from '../middleware/auth.middleware';
+import { uploadSignedCopy } from '../middleware/upload.middleware';
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.post('/:id/approve', QuotationsController.approveQuotation);
 router.post('/:id/decline', QuotationsController.declineQuotation);
 router.post('/:id/send', QuotationsController.sendQuotation);
 router.patch('/:id/status', QuotationsController.updateQuotationStatus);
+router.post('/:id/signed-copy', uploadSignedCopy.single('signedCopy'), QuotationsController.uploadSignedCopy);
 
 export default router;

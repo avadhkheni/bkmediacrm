@@ -37,7 +37,7 @@ export default function DispatchTab({ inquiryId, department }: DispatchTabProps)
   const fetchData = async () => {
     try {
       const [vRes, sRes, saRes, lbRes] = await Promise.all([
-        api.get("/settings/vehicles"), // Need to make sure this endpoint exists or just use a mock or fetch if it exists. Actually, we can fetch from generic /vehicles if settings/vehicles is what was made before. Let's try /settings/vehicles. Wait, in Sidebar it says /dashboard/settings?tab=vehicles so the API might be /vehicles.
+        api.get("/vehicles"),
         api.get("/staff"),
         api.get(`/dispatch/staff?inquiryId=${inquiryId}`),
         department === 'LED' ? api.get(`/dispatch/led-boxes?inquiryId=${inquiryId}`) : Promise.resolve({ data: [] })
@@ -49,13 +49,6 @@ export default function DispatchTab({ inquiryId, department }: DispatchTabProps)
       setLedBoxes(lbRes.data || []);
     } catch (error) {
       console.error("Failed to load dispatch data", error);
-      // Fallback if /settings/vehicles doesn't exist
-      try {
-        const vRes = await api.get("/vehicles");
-        setVehicles(vRes.data || []);
-      } catch (e) {
-        console.log("No vehicles found");
-      }
     } finally {
       setLoading(false);
     }
@@ -142,21 +135,21 @@ export default function DispatchTab({ inquiryId, department }: DispatchTabProps)
                 >
                   <option value="">Select Vehicle</option>
                   {vehicles.map(v => (
-                    <option key={v.id} value={v.id}>{v.name} ({v.numberPlate})</option>
+                    <option key={v.id} value={String(v.id)}>{v.name} ({v.numberPlate})</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Staff Member</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Driver / Labour Staff</label>
                 <select 
                   required
                   value={selectedStaffId} 
                   onChange={e => setSelectedStaffId(e.target.value)}
                   className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-sm font-medium text-slate-900 dark:text-white"
                 >
-                  <option value="">Select Staff</option>
+                  <option value="">Select Driver / Labour</option>
                   {staff.map(s => (
-                    <option key={s.id} value={s.id}>{s.name} - {s.role}</option>
+                    <option key={s.id} value={String(s.id)}>{s.name} - {s.role}</option>
                   ))}
                 </select>
               </div>

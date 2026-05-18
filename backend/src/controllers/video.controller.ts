@@ -86,7 +86,12 @@ export const getBookings = async (req: Request, res: Response) => {
     });
 
     const vendors = await prisma.vendor.findMany({
-      where: { department: 'VIDEO' }
+      where: {
+        OR: [
+          { department: 'VIDEO' },
+          { department: { contains: 'VIDEO' } }
+        ]
+      }
     });
 
     const bookingsWithVendor = bookings.map(b => ({
