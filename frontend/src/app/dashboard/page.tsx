@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import Link from "next/link";
+import { usePermission } from "@/lib/usePermission";
 import {
   ClipboardList,
   CheckCircle2,
@@ -19,6 +20,7 @@ import {
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const { hasPermission } = usePermission();
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -67,6 +69,42 @@ export default function DashboardPage() {
     { label: "Manage Staff", href: "/dashboard/staff", icon: UsersRound },
   ];
 
+  // Dynamic filter for stats cards
+  const filteredCards = cards.filter(card => {
+    if (card.title.includes("Inquiries") || card.title.includes("Events")) {
+      return hasPermission("INQUIRIES", "canRead");
+    }
+    if (card.title.includes("Clients")) {
+      return hasPermission("CLIENTS", "canRead");
+    }
+    if (card.title.includes("Staff")) {
+      return hasPermission("STAFF", "canRead");
+    }
+    if (card.title.includes("Revenue")) {
+      return hasPermission("FINANCE", "canRead");
+    }
+    return true;
+  });
+
+  // Dynamic filter for quick action options
+  const filteredQuickActions = quickActions.filter(action => {
+    if (action.label === "New Inquiry") {
+      return hasPermission("INQUIRIES", "canCreate") && hasPermission("INQUIRIES", "canRead");
+    }
+    if (action.label === "Add Client") {
+      return hasPermission("CLIENTS", "canCreate") && hasPermission("CLIENTS", "canRead");
+    }
+    if (action.label === "View Reports") {
+      return hasPermission("FINANCE", "canRead");
+    }
+    if (action.label === "Manage Staff") {
+      return hasPermission("STAFF", "canRead");
+    }
+    return true;
+  });
+
+  const showRecentInquiries = hasPermission("INQUIRIES", "canRead");
+
   return (
     <div className="w-full space-y-8">
       {/* Welcome Header */}
@@ -77,7 +115,7 @@ export default function DashboardPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {cards.map((card) => {
+        {filteredCards.map((card) => {
           const colors = colorMap[card.color];
           const IconComponent = card.icon;
           return (
@@ -103,42 +141,44 @@ export default function DashboardPage() {
       {/* Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Inquiries */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
-          <div className="p-6 border-b border-gray-100 dark:border-slate-700">
-            <h3 className="font-semibold text-gray-900 dark:text-white">Recent Inquiries</h3>
+        {showRecentInquiries && (
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
+            <div className="p-6 border-b border-gray-100 dark:border-slate-700">
+              <h3 className="font-semibold text-gray-900 dark:text-white">Recent Inquiries</h3>
+            </div>
+            <div className="divide-y divide-gray-50 dark:divide-slate-700">
+              {stats?.recentInquiries?.length > 0 ? (
+                stats.recentInquiries.slice(0, 5).map((inq: any) => (
+                  <Link 
+                    key={inq.id} 
+                    href={`/dashboard/inquiries/details?id=${inq.id}`}
+                    className="px-6 py-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors block"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{inq.eventName}</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400">{inq.client?.name || 'N/A'} • {inq.department}</p>
+                    </div>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-md ${
+                      inq.status === 'CONFIRMED' ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' :
+                      inq.status === 'REJECTED' ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400' :
+                      'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                    }`}>
+                      {inq.status}
+                    </span>
+                  </Link>
+                ))
+              ) : (
+                <div className="px-6 py-8 text-center text-sm text-gray-400 dark:text-slate-500">No recent inquiries</div>
+              )}
+            </div>
           </div>
-          <div className="divide-y divide-gray-50 dark:divide-slate-700">
-            {stats?.recentInquiries?.length > 0 ? (
-              stats.recentInquiries.slice(0, 5).map((inq: any) => (
-                <Link 
-                  key={inq.id} 
-                  href={`/dashboard/inquiries/details?id=${inq.id}`}
-                  className="px-6 py-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors block"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{inq.eventName}</p>
-                    <p className="text-xs text-gray-500 dark:text-slate-400">{inq.client?.name || 'N/A'} • {inq.department}</p>
-                  </div>
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-md ${
-                    inq.status === 'CONFIRMED' ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' :
-                    inq.status === 'REJECTED' ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400' :
-                    'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                  }`}>
-                    {inq.status}
-                  </span>
-                </Link>
-              ))
-            ) : (
-              <div className="px-6 py-8 text-center text-sm text-gray-400 dark:text-slate-500">No recent inquiries</div>
-            )}
-          </div>
-        </div>
+        )}
 
         {/* Quick Actions */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-6">
+        <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-6 ${!showRecentInquiries ? "lg:col-span-2 animate-fade-in" : ""}`}>
           <h3 className="font-semibold text-gray-900 dark:text-white mb-6">Quick Actions</h3>
           <div className="grid grid-cols-2 gap-4">
-            {quickActions.map(action => {
+            {filteredQuickActions.map(action => {
               const IconComponent = action.icon;
               return (
                 <Link
@@ -159,3 +199,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 5001;
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: '*', // In production, replace with your frontend URL
+    origin: '*', // In production, replace with your frontend URL.
     methods: ['GET', 'POST']
   }
 });

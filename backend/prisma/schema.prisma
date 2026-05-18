@@ -15,6 +15,7 @@ model User {
   email        String    @unique
   passwordHash String
   role         String    // ADMIN | FINANCE | ACCOUNTS | OPERATIONAL | VIDEO_DEPT | LED_DEPT | STAFF
+  roleData     Role?     @relation(fields: [role], references: [name])
   staffId      Int?      @unique
   staff        Staff?    @relation(fields: [staffId], references: [id])
   isActive     Boolean   @default(true)
@@ -32,6 +33,31 @@ model RefreshToken {
   token     String
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+// ─── ROLES & PERMISSIONS ────────────────────────────────
+
+model Role {
+  name        String   @id
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  users       User[]
+  permissions RolePermission[]
+}
+
+model RolePermission {
+  id          Int      @id @default(autoincrement())
+  roleName    String
+  role        Role     @relation(fields: [roleName], references: [name], onDelete: Cascade)
+  module      String   // e.g. "INQUIRIES", "FINANCE", "INVENTORY", "STAFF"
+  canCreate   Boolean  @default(false)
+  canRead     Boolean  @default(true)
+  canUpdate   Boolean  @default(false)
+  canDelete   Boolean  @default(false)
+  
+  @@unique([roleName, module])
 }
 
 // ─── CLIENTS ────────────────────────────────────────────
@@ -56,43 +82,43 @@ model Client {
 // ─── INQUIRIES ──────────────────────────────────────────
 
 model Inquiry {
-  id             Int       @id @default(autoincrement())
-  inquiryNumber  String?   @unique
-  clientId       Int
-  client         Client    @relation(fields: [clientId], references: [id])
-  department     String    // VIDEO | LED | SOUND
-  eventName      String
-  eventType      String?
-  startDate      DateTime
-  endDate        DateTime
-  totalDays      Int
-  venue          String
-  status         String    @default("INQUIRY")
-  source         String?   @default("WEBSITE") // INSTAGRAM | WEBSITE | WHATSAPP | REFERRAL | DIRECT
-  priority       String    @default("MEDIUM") // LOW | MEDIUM | HIGH | URGENT
-  category       String?   // CORPORATE | WEDDING | CONCERT | OTHER
-  specialNotes   String?
-  createdById    Int?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  deletedAt      DateTime?
+  id            Int       @id @default(autoincrement())
+  inquiryNumber String?   @unique
+  clientId      Int
+  client        Client    @relation(fields: [clientId], references: [id])
+  department    String // VIDEO | LED | SOUND
+  eventName     String
+  eventType     String?
+  startDate     DateTime
+  endDate       DateTime
+  totalDays     Int
+  venue         String
+  status        String    @default("INQUIRY")
+  source        String?   @default("WEBSITE") // INSTAGRAM | WEBSITE | WHATSAPP | REFERRAL | DIRECT
+  priority      String    @default("MEDIUM") // LOW | MEDIUM | HIGH | URGENT
+  category      String? // CORPORATE | WEDDING | CONCERT | OTHER
+  specialNotes  String?
+  createdById   Int?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
 
-  quotations            Quotation[]
-  invoices              Invoice[]
-  staffAssignments      EventStaffAssignment[]
-  expenseReport         ExpenseReport?
-  videoDataSheets       VideoDataSheet[]
-  videoEventBookings    VideoEventBooking[]
-  ledWarehouseAllocations LedWarehouseAllocation[]
-  ledVendorArrangements LedVendorArrangement[]
-  ledDispatchBoxEntries LedDispatchBoxEntry[]
-  ledScreenStatuses     LedScreenStatus[]
-  ledEventIssues        LedEventIssue[]
+  quotations               Quotation[]
+  invoices                 Invoice[]
+  staffAssignments         EventStaffAssignment[]
+  expenseReport            ExpenseReport?
+  videoDataSheets          VideoDataSheet[]
+  videoEventBookings       VideoEventBooking[]
+  ledWarehouseAllocations  LedWarehouseAllocation[]
+  ledVendorArrangements    LedVendorArrangement[]
+  ledDispatchBoxEntries    LedDispatchBoxEntry[]
+  ledScreenStatuses        LedScreenStatus[]
+  ledEventIssues           LedEventIssue[]
   dispatchStaffAssignments DispatchStaffAssignment[]
-  soundEventBookings    SoundEventBooking[]
-  officeTasks           OfficeTask[]
-  soundSetup            SoundSetup?
-  vendorRentals         VendorRental[]
+  soundEventBookings       SoundEventBooking[]
+  officeTasks              OfficeTask[]
+  soundSetup               SoundSetup?
+  vendorRentals            VendorRental[]
 }
 
 // ─── QUOTATIONS ─────────────────────────────────────────
@@ -119,33 +145,33 @@ model Quotation {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  videoQuotationItems VideoQuotationItem[]
-  ledQuotationItems   LedQuotationItem[]
-  soundQuotationItems SoundQuotationItem[]
+  videoQuotationItems  VideoQuotationItem[]
+  ledQuotationItems    LedQuotationItem[]
+  soundQuotationItems  SoundQuotationItem[]
   officeQuotationItems OfficeQuotationItem[]
-  invoice             Invoice?
+  invoice              Invoice?
 }
 
 // ─── INVOICES ───────────────────────────────────────────
 
 model Invoice {
-  id             Int       @id @default(autoincrement())
-  invoiceNumber  String    @unique
-  quotationId    Int       @unique
-  quotation      Quotation @relation(fields: [quotationId], references: [id])
-  inquiryId      Int
-  inquiry        Inquiry   @relation(fields: [inquiryId], references: [id])
-  subtotal       Decimal
-  cgstAmount     Decimal?
-  sgstAmount     Decimal?
-  grossTotal     Decimal
-  advanceAmount  Decimal   @default(0)
-  balanceAmount  Decimal?
-  status         String    @default("PENDING")
-  dueDate        DateTime?
-  createdById    Int?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id            Int       @id @default(autoincrement())
+  invoiceNumber String    @unique
+  quotationId   Int       @unique
+  quotation     Quotation @relation(fields: [quotationId], references: [id])
+  inquiryId     Int
+  inquiry       Inquiry   @relation(fields: [inquiryId], references: [id])
+  subtotal      Decimal
+  cgstAmount    Decimal?
+  sgstAmount    Decimal?
+  grossTotal    Decimal
+  advanceAmount Decimal   @default(0)
+  balanceAmount Decimal?
+  status        String    @default("PENDING")
+  dueDate       DateTime?
+  createdById   Int?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   payments Payment[]
 }
@@ -182,43 +208,43 @@ model Staff {
   createdAt    DateTime  @default(now())
   deletedAt    DateTime?
 
-  user         User?
-  assignments  EventStaffAssignment[]
+  user                User?
+  assignments         EventStaffAssignment[]
   dispatchAssignments DispatchStaffAssignment[]
-  officeTasks         OfficeTask[] @relation("StaffTasks")
+  officeTasks         OfficeTask[]              @relation("StaffTasks")
 }
 
 model EventStaffAssignment {
-  id             Int       @id @default(autoincrement())
-  inquiryId      Int
-  inquiry        Inquiry   @relation(fields: [inquiryId], references: [id])
-  staffId        Int
-  staff          Staff     @relation(fields: [staffId], references: [id])
-  positionNo     Int?
-  positionName   String?
-  daysAssigned   Int
-  ratePerDay     Decimal
-  totalPayment   Decimal
-  paymentStatus  String    @default("PENDING")
-  paymentMethod  String?
-  paidAt         DateTime?
-  notes          String?
-  createdAt      DateTime  @default(now())
+  id            Int       @id @default(autoincrement())
+  inquiryId     Int
+  inquiry       Inquiry   @relation(fields: [inquiryId], references: [id])
+  staffId       Int
+  staff         Staff     @relation(fields: [staffId], references: [id])
+  positionNo    Int?
+  positionName  String?
+  daysAssigned  Int
+  ratePerDay    Decimal
+  totalPayment  Decimal
+  paymentStatus String    @default("PENDING")
+  paymentMethod String?
+  paidAt        DateTime?
+  notes         String?
+  createdAt     DateTime  @default(now())
 }
 
 // ─── VENDORS ────────────────────────────────────────────
 
 model Vendor {
-  id              Int      @id @default(autoincrement())
-  name            String
-  phone           String?
-  email           String?
-  department      String?
-  specialization  String?
-  address         String?
-  gstNumber       String?
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  name           String
+  phone          String?
+  email          String?
+  department     String?
+  specialization String?
+  address        String?
+  gstNumber      String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
 
   ledVendorArrangements LedVendorArrangement[]
   products              VendorProduct[]
@@ -226,13 +252,13 @@ model Vendor {
 }
 
 model VendorProduct {
-  id          Int      @id @default(autoincrement())
-  vendorId    Int
-  vendor      Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  name        String
-  category    String   // VIDEO, LED, SOUND
-  ratePerDay  Decimal
-  createdAt   DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  vendorId   Int
+  vendor     Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name       String
+  category   String // VIDEO, LED, SOUND
+  ratePerDay Decimal
+  createdAt  DateTime @default(now())
 }
 
 model VendorRental {
@@ -294,92 +320,92 @@ model ExtraExpense {
 // ─── VEHICLES & DISPATCH ────────────────────────────────
 
 model Vehicle {
-  id            Int      @id @default(autoincrement())
+  id            Int       @id @default(autoincrement())
   name          String
   numberPlate   String
   vehicleType   String
   capacityNotes String?
-  isActive      Boolean  @default(true)
+  isActive      Boolean   @default(true)
   deletedAt     DateTime?
 
   dispatchStaffAssignments DispatchStaffAssignment[]
 }
 
 model DispatchStaffAssignment {
-  id         Int      @id @default(autoincrement())
-  inquiryId  Int
-  inquiry    Inquiry  @relation(fields: [inquiryId], references: [id])
-  vehicleId  Int
-  vehicle    Vehicle  @relation(fields: [vehicleId], references: [id])
-  staffId    Int
-  staff      Staff    @relation(fields: [staffId], references: [id])
-  createdAt  DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  inquiryId Int
+  inquiry   Inquiry  @relation(fields: [inquiryId], references: [id])
+  vehicleId Int
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id])
+  staffId   Int
+  staff     Staff    @relation(fields: [staffId], references: [id])
+  createdAt DateTime @default(now())
 }
 
 // ─── VIDEO DEPARTMENT ───────────────────────────────────
 
 model VideoQuotationItem {
-  id           Int       @id @default(autoincrement())
-  quotationId  Int
-  quotation    Quotation @relation(fields: [quotationId], references: [id])
-  placeName    String
-  position     String
+  id            Int       @id @default(autoincrement())
+  quotationId   Int
+  quotation     Quotation @relation(fields: [quotationId], references: [id])
+  placeName     String
+  position      String
   equipmentType String
-  ratePerDay   Decimal
-  days         Int
-  totalAmount  Decimal
-  sortOrder    Int       @default(0)
+  ratePerDay    Decimal
+  days          Int
+  totalAmount   Decimal
+  sortOrder     Int       @default(0)
 }
 
 model VideoEquipment {
-  id           Int      @id @default(autoincrement())
-  name         String
-  category     String
-  brand        String?
-  model        String?
-  serialNumber String?
-  totalQuantity      Int      @default(1)
-  availableQuantity  Int      @default(1)
-  inUseQuantity      Int      @default(0)
-  maintenanceQuantity Int     @default(0)
-  ratePerDay   Decimal?
-  status       String   @default("AVAILABLE")
-  notes        String?
-  createdAt    DateTime @default(now())
-  deletedAt    DateTime?
+  id                  Int       @id @default(autoincrement())
+  name                String
+  category            String
+  brand               String?
+  model               String?
+  serialNumber        String?
+  totalQuantity       Int       @default(1)
+  availableQuantity   Int       @default(1)
+  inUseQuantity       Int       @default(0)
+  maintenanceQuantity Int       @default(0)
+  ratePerDay          Decimal?
+  status              String    @default("AVAILABLE")
+  notes               String?
+  createdAt           DateTime  @default(now())
+  deletedAt           DateTime?
 
-  warehouseId  Int?
-  warehouse    Warehouse? @relation(fields: [warehouseId], references: [id])
+  warehouseId Int?
+  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
 
-  bookings VideoEventBooking[]
+  bookings  VideoEventBooking[]
   movements StockMovement[]
 }
 
 model VideoEventBooking {
-  id          Int            @id @default(autoincrement())
-  inquiryId   Int
-  inquiry     Inquiry        @relation(fields: [inquiryId], references: [id])
-  equipmentId Int
-  equipment   VideoEquipment @relation(fields: [equipmentId], references: [id])
-  position    String?
-  bookedFrom  DateTime
-  bookedTo    DateTime
-  status      String         @default("BOOKED")
-  vendorId    Int?
-  vendorCost  Decimal?
+  id            Int            @id @default(autoincrement())
+  inquiryId     Int
+  inquiry       Inquiry        @relation(fields: [inquiryId], references: [id])
+  equipmentId   Int
+  equipment     VideoEquipment @relation(fields: [equipmentId], references: [id])
+  position      String?
+  bookedFrom    DateTime
+  bookedTo      DateTime
+  status        String         @default("BOOKED")
+  vendorId      Int?
+  vendorCost    Decimal?
   confirmedById Int?
-  confirmedAt DateTime?
+  confirmedAt   DateTime?
 }
 
 model VideoDataSheet {
-  id             Int      @id @default(autoincrement())
-  inquiryId      Int
-  inquiry        Inquiry  @relation(fields: [inquiryId], references: [id])
-  dayNumber      Int
-  eventDate      DateTime
-  sessionName    String
-  isDayComplete  Boolean  @default(false)
-  createdAt      DateTime @default(now())
+  id            Int      @id @default(autoincrement())
+  inquiryId     Int
+  inquiry       Inquiry  @relation(fields: [inquiryId], references: [id])
+  dayNumber     Int
+  eventDate     DateTime
+  sessionName   String
+  isDayComplete Boolean  @default(false)
+  createdAt     DateTime @default(now())
 
   entries VideoDataSheetEntry[]
 }
@@ -409,22 +435,22 @@ model SoundQuotationItem {
 }
 
 model OfficeQuotationItem {
-  id            Int       @id @default(autoincrement())
-  quotationId   Int
-  quotation     Quotation @relation(fields: [quotationId], references: [id])
-  serviceName   String
-  description   String?
-  rate          Decimal
-  quantity      Int       @default(1)
-  days          Int       @default(1)
-  totalAmount   Decimal
-  sortOrder     Int       @default(0)
+  id          Int       @id @default(autoincrement())
+  quotationId Int
+  quotation   Quotation @relation(fields: [quotationId], references: [id])
+  serviceName String
+  description String?
+  rate        Decimal
+  quantity    Int       @default(1)
+  days        Int       @default(1)
+  totalAmount Decimal
+  sortOrder   Int       @default(0)
 }
 
 model SoundEquipment {
   id                  Int       @id @default(autoincrement())
   name                String
-  category            String    // Speakers, Mixers, Amplifiers, Microphones, Cables
+  category            String // Speakers, Mixers, Amplifiers, Microphones, Cables
   brand               String?
   model               String?
   serialNumber        String?
@@ -438,11 +464,11 @@ model SoundEquipment {
   createdAt           DateTime  @default(now())
   deletedAt           DateTime?
 
-  warehouseId         Int?
-  warehouse           Warehouse? @relation(fields: [warehouseId], references: [id])
+  warehouseId Int?
+  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
 
-  bookings            SoundEventBooking[]
-  movements           StockMovement[]
+  bookings  SoundEventBooking[]
+  movements StockMovement[]
 }
 
 model SoundEventBooking {
@@ -462,60 +488,60 @@ model SoundEventBooking {
 }
 
 model SoundSetup {
-  id              Int      @id @default(autoincrement())
-  inquiryId       Int      @unique
-  inquiry         Inquiry  @relation(fields: [inquiryId], references: [id])
-  stageSize       String?  // e.g. 40x30
-  audienceSize    Int?     // e.g. 500
-  eventType       String?  // e.g. Concert, Wedding, Seminar
-  powerRequiredKw Decimal  @default(0)
-  venueType       String?  // INDOOR | OUTDOOR
-  paSystemType    String?  // LINE_ARRAY | POINT_SOURCE
-  monitorCount    Int      @default(0)
+  id               Int     @id @default(autoincrement())
+  inquiryId        Int     @unique
+  inquiry          Inquiry @relation(fields: [inquiryId], references: [id])
+  stageSize        String? // e.g. 40x30
+  audienceSize     Int? // e.g. 500
+  eventType        String? // e.g. Concert, Wedding, Seminar
+  powerRequiredKw  Decimal @default(0)
+  venueType        String? // INDOOR | OUTDOOR
+  paSystemType     String? // LINE_ARRAY | POINT_SOURCE
+  monitorCount     Int     @default(0)
   wirelessMicCount Int     @default(0)
-  totalWattage    Int      @default(0)
-  
+  totalWattage     Int     @default(0)
+
   // Setup Workflow
-  riggingDone     Boolean  @default(false)
-  paTuned         Boolean  @default(false)
-  soundCheckDone  Boolean  @default(false)
-  
-  notes           String?
-  updatedAt       DateTime @updatedAt
+  riggingDone    Boolean @default(false)
+  paTuned        Boolean @default(false)
+  soundCheckDone Boolean @default(false)
+
+  notes     String?
+  updatedAt DateTime @updatedAt
 }
 
 // ─── LED DEPARTMENT ─────────────────────────────────────
 
 model LedStock {
-  id                Int      @id @default(autoincrement())
-  companyName       String
-  ledType           String
-  cabinetHeightMm   Int
-  cabinetWidthMm    Int
-  cabinetsPerBox    Int
-  totalCabinets     Int
-  availableQuantity Int      @default(0)
-  inUseQuantity     Int      @default(0)
-  maintenanceQuantity Int    @default(0)
-  pricingSqft       Int
-  totalBoxes        Int
-  status            String   @default("AVAILABLE")
-  isActive          Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  deletedAt         DateTime?
+  id                  Int       @id @default(autoincrement())
+  companyName         String
+  ledType             String
+  cabinetHeightMm     Int
+  cabinetWidthMm      Int
+  cabinetsPerBox      Int
+  totalCabinets       Int
+  availableQuantity   Int       @default(0)
+  inUseQuantity       Int       @default(0)
+  maintenanceQuantity Int       @default(0)
+  pricingSqft         Int
+  totalBoxes          Int
+  status              String    @default("AVAILABLE")
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  deletedAt           DateTime?
 
-  warehouseId       Int?
-  warehouse         Warehouse? @relation(fields: [warehouseId], references: [id])
+  warehouseId Int?
+  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
 
   allocations LedWarehouseAllocation[]
   movements   StockMovement[]
 }
 
 model LedTypeRate {
-  id                   Int      @id @default(autoincrement())
-  ledType              String   @unique
-  ratePerSqftPerDay    Decimal
-  updatedAt            DateTime @updatedAt
+  id                Int      @id @default(autoincrement())
+  ledType           String   @unique
+  ratePerSqftPerDay Decimal
+  updatedAt         DateTime @updatedAt
 }
 
 model LedQuotationItem {
@@ -536,43 +562,43 @@ model LedQuotationItem {
 }
 
 model LedWarehouseAllocation {
-  id            Int      @id @default(autoincrement())
+  id            Int       @id @default(autoincrement())
   inquiryId     Int
-  inquiry       Inquiry  @relation(fields: [inquiryId], references: [id])
+  inquiry       Inquiry   @relation(fields: [inquiryId], references: [id])
   ledStockId    Int
-  ledStock      LedStock @relation(fields: [ledStockId], references: [id])
+  ledStock      LedStock  @relation(fields: [ledStockId], references: [id])
   allocatedSqft Int
-  confirmed     Boolean  @default(false)
+  confirmed     Boolean   @default(false)
   confirmedAt   DateTime?
   confirmedById Int?
 }
 
 model LedVendorArrangement {
-  id                      Int      @id @default(autoincrement())
-  inquiryId               Int
-  inquiry                 Inquiry  @relation(fields: [inquiryId], references: [id])
-  vendorId                Int?
-  vendor                  Vendor?  @relation(fields: [vendorId], references: [id])
-  vendorName              String
-  ledType                 String
-  sqftArranged            Int
-  costRatePerSqftPerDay   Decimal
-  days                    Int
-  totalCost               Decimal
-  status                  String   @default("ARRANGED")
+  id                    Int     @id @default(autoincrement())
+  inquiryId             Int
+  inquiry               Inquiry @relation(fields: [inquiryId], references: [id])
+  vendorId              Int?
+  vendor                Vendor? @relation(fields: [vendorId], references: [id])
+  vendorName            String
+  ledType               String
+  sqftArranged          Int
+  costRatePerSqftPerDay Decimal
+  days                  Int
+  totalCost             Decimal
+  status                String  @default("ARRANGED")
 }
 
 model LedDispatchBoxEntry {
-  id              Int      @id @default(autoincrement())
-  inquiryId       Int
-  inquiry         Inquiry  @relation(fields: [inquiryId], references: [id])
-  vehicleName     String
-  vehicleNumber   String?
-  companyName     String
-  numBoxes        Int
-  cabinetsPerBox  Int
-  totalCabinets   Int
-  createdAt       DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  inquiryId      Int
+  inquiry        Inquiry  @relation(fields: [inquiryId], references: [id])
+  vehicleName    String
+  vehicleNumber  String?
+  companyName    String
+  numBoxes       Int
+  cabinetsPerBox Int
+  totalCabinets  Int
+  createdAt      DateTime @default(now())
 }
 
 model LedScreenStatus {
@@ -593,104 +619,104 @@ model LedScreenStatus {
 }
 
 model LedEventIssue {
-  id          Int      @id @default(autoincrement())
-  inquiryId   Int
-  inquiry     Inquiry  @relation(fields: [inquiryId], references: [id])
-  issueText   String
-  reportedAt  DateTime @default(now())
+  id           Int       @id @default(autoincrement())
+  inquiryId    Int
+  inquiry      Inquiry   @relation(fields: [inquiryId], references: [id])
+  issueText    String
+  reportedAt   DateTime  @default(now())
   reportedById Int?
-  resolved    Boolean  @default(false)
-  resolvedAt  DateTime?
+  resolved     Boolean   @default(false)
+  resolvedAt   DateTime?
 }
 
 // ─── WAREHOUSE & INVENTORY ──────────────────────────────
 
 model Warehouse {
-  id          Int      @id @default(autoincrement())
-  name        String
-  location    String
-  status      String   @default("ACTIVE")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  name      String
+  location  String
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  videoStock  VideoEquipment[]
-  ledStock    LedStock[]
-  soundStock  SoundEquipment[]
-  movements   StockMovement[]
+  videoStock VideoEquipment[]
+  ledStock   LedStock[]
+  soundStock SoundEquipment[]
+  movements  StockMovement[]
 }
 
 model StockMovement {
-  id              Int      @id @default(autoincrement())
-  warehouseId     Int
-  warehouse       Warehouse @relation(fields: [warehouseId], references: [id])
-  
-  videoEquipId    Int?
-  videoEquipment  VideoEquipment? @relation(fields: [videoEquipId], references: [id])
-  ledStockId      Int?
-  ledStock        LedStock? @relation(fields: [ledStockId], references: [id])
-  soundEquipId    Int?
-  soundEquipment  SoundEquipment? @relation(fields: [soundEquipId], references: [id])
-  
-  action          String   // ADDED, SENT_TO_ORDER, RETURNED, DAMAGED, MISSING, ADJUSTED
-  quantity        Int
-  userId          Int?
-  inquiryId       Int?
-  notes           String?
-  createdAt       DateTime @default(now())
+  id          Int       @id @default(autoincrement())
+  warehouseId Int
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+
+  videoEquipId   Int?
+  videoEquipment VideoEquipment? @relation(fields: [videoEquipId], references: [id])
+  ledStockId     Int?
+  ledStock       LedStock?       @relation(fields: [ledStockId], references: [id])
+  soundEquipId   Int?
+  soundEquipment SoundEquipment? @relation(fields: [soundEquipId], references: [id])
+
+  action    String // ADDED, SENT_TO_ORDER, RETURNED, DAMAGED, MISSING, ADJUSTED
+  quantity  Int
+  userId    Int?
+  inquiryId Int?
+  notes     String?
+  createdAt DateTime @default(now())
 }
 
 model Checklist {
-  id              Int      @id @default(autoincrement())
-  type            String   // DISPATCH | RETURN
-  inquiryId       Int
-  staffName       String
-  notes           String?
-  penaltyAmount   Decimal?
-  createdAt       DateTime @default(now())
-  
-  items           ChecklistItem[]
+  id            Int      @id @default(autoincrement())
+  type          String // DISPATCH | RETURN
+  inquiryId     Int
+  staffName     String
+  notes         String?
+  penaltyAmount Decimal?
+  createdAt     DateTime @default(now())
+
+  items ChecklistItem[]
 }
 
 model ChecklistItem {
-  id              Int      @id @default(autoincrement())
-  checklistId     Int
-  checklist       Checklist @relation(fields: [checklistId], references: [id])
-  checkName       String
-  isPassed        Boolean  @default(false)
-  notes           String?
+  id          Int       @id @default(autoincrement())
+  checklistId Int
+  checklist   Checklist @relation(fields: [checklistId], references: [id])
+  checkName   String
+  isPassed    Boolean   @default(false)
+  notes       String?
 }
 
 // ─── OFFICE DEPARTMENT (IN-HOUSE) ────────────────────────
 
 model OfficeTask {
-  id             Int       @id @default(autoincrement())
-  inquiryId      Int?
-  inquiry        Inquiry?  @relation(fields: [inquiryId], references: [id])
-  title          String
-  description    String?
-  subDepartment  String    // VIDEO_EDITING | GRAPHIC_DESIGN | SOCIAL_MEDIA
-  priority       String    @default("MEDIUM") // LOW | MEDIUM | HIGH | URGENT
-  status         String    @default("NOT_STARTED") // NOT_STARTED | IN_PROGRESS | REVIEW | COMPLETED
-  deadline       DateTime?
+  id              Int       @id @default(autoincrement())
+  inquiryId       Int?
+  inquiry         Inquiry?  @relation(fields: [inquiryId], references: [id])
+  title           String
+  description     String?
+  subDepartment   String // VIDEO_EDITING | GRAPHIC_DESIGN | SOCIAL_MEDIA
+  priority        String    @default("MEDIUM") // LOW | MEDIUM | HIGH | URGENT
+  status          String    @default("NOT_STARTED") // NOT_STARTED | IN_PROGRESS | REVIEW | COMPLETED
+  deadline        DateTime?
   assignedStaffId Int?
-  assignedStaff  Staff?    @relation("StaffTasks", fields: [assignedStaffId], references: [id])
-  
+  assignedStaff   Staff?    @relation("StaffTasks", fields: [assignedStaffId], references: [id])
+
   // Delivery Workflow fields
-  rawFootageRecv Boolean   @default(false)
-  editingStarted Boolean   @default(false)
-  reviewDone     Boolean   @default(false)
+  rawFootageRecv   Boolean @default(false)
+  editingStarted   Boolean @default(false)
+  reviewDone       Boolean @default(false)
   readyForDelivery Boolean @default(false)
-  
-  notes          String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Notification {
   id          Int      @id @default(autoincrement())
-  type        String   // e.g., QUOTATION_APPROVED, PAYMENT_RECEIVED
+  type        String // e.g., QUOTATION_APPROVED, PAYMENT_RECEIVED
   message     String
-  targetRoles String   // Stored as a comma-separated string for simplicity in SQLite (e.g., "ADMIN,OPERATIONAL")
+  targetRoles String // Stored as a comma-separated string for simplicity in SQLite (e.g., "ADMIN,OPERATIONAL")
   inquiryId   Int?
   read        Boolean  @default(false)
   createdAt   DateTime @default(now())

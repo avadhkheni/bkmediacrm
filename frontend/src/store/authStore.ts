@@ -1,12 +1,24 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+interface Permission {
+  id?: number;
+  module: string;
+  canCreate: boolean;
+  canRead: boolean;
+  canUpdate: boolean;
+  canDelete: boolean;
+}
+
 interface User {
   id: number;
   name: string;
   email: string;
   role: string;
   staffId?: number | null;
+  roleData?: {
+    permissions: Permission[];
+  } | null;
 }
 
 interface AuthState {

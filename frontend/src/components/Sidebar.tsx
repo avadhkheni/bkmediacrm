@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
+import { usePermission, PermissionModule } from "@/lib/usePermission";
 import {
   LayoutGrid,
   ClipboardList,
@@ -23,7 +24,8 @@ import {
   ChevronRight,
   Menu,
   X,
-  Truck
+  Truck,
+  Shield
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -104,12 +106,43 @@ const navItems = [
     icon: UserCog,
     section: "Team"
   },
+  { 
+    name: "Users & Roles", 
+    href: "/dashboard/roles",
+    icon: Shield,
+    section: "Team"
+  },
 ];
+
+const itemPermissionMap: Record<string, PermissionModule> = {
+  "Dashboard": "DASHBOARD",
+  "Orders & Inquiries": "INQUIRIES",
+  "Clients": "CLIENTS",
+  "Availability": "AVAILABILITY",
+  "Work Teams": "WORK_TEAMS",
+  "Warehouse": "WAREHOUSE",
+  "Item Stock": "WAREHOUSE",
+  "To-Do & Checklists": "WAREHOUSE",
+  "Vendors (Rent)": "WAREHOUSE",
+  "Vehicles": "WAREHOUSE",
+  "Invoices & Bills": "FINANCE",
+  "Profit Reports": "FINANCE",
+  "Staff List": "STAFF",
+  "Users & Roles": "STAFF"
+};
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { hasPermission } = usePermission();
+
+  // Filter navItems based on dynamic read permissions
+  const filteredNavItems = navItems.filter(item => {
+    const moduleName = itemPermissionMap[item.name];
+    if (!moduleName) return true; // Default fallback: always show if not mapped
+    return hasPermission(moduleName, "canRead");
+  });
 
   // Auto-collapse on small screens
   useEffect(() => {
@@ -147,13 +180,13 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 px-3 space-y-1 mt-2 overflow-y-auto custom-scrollbar overflow-x-hidden">
-        {navItems.map((item, index) => {
+        {filteredNavItems.map((item, index) => {
           const isActive = item.exact 
             ? pathname === item.href 
             : pathname === item.href || pathname.startsWith(`${item.href}/`);
           
           const IconComponent = item.icon;
-          const showSection = !isCollapsed && item.section && (index === 0 || navItems[index - 1].section !== item.section);
+          const showSection = !isCollapsed && item.section && (index === 0 || filteredNavItems[index - 1].section !== item.section);
             
           return (
             <div key={item.name}>

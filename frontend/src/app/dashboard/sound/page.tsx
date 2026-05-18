@@ -20,7 +20,6 @@ import {
   Trash2,
   Users
 } from "lucide-react";
-import VendorSection from "@/components/VendorSection";
 import { motion } from "framer-motion";
 const soundCategories = [
   { label: "All", value: "All" },
@@ -41,7 +40,7 @@ export default function SoundDashboard() {
     }
   }, [router]);
 
-  const [activeTab, setActiveTab] = useState<'inventory' | 'vendors'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory'>('inventory');
   const [equipment, setEquipment] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -168,14 +167,6 @@ export default function SoundDashboard() {
         >
           <Activity className="w-4 h-4" /> Equipment Inventory
         </button>
-        <button 
-          onClick={() => setActiveTab('vendors')}
-          className={`px-6 py-4 font-medium text-sm transition-colors border-b-2 ${
-            activeTab === 'vendors' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
-          } flex items-center gap-2`}
-        >
-          <Users className="w-4 h-4" /> Outside Suppliers / Rent
-        </button>
       </div>
 
       {activeTab === 'inventory' && (
@@ -281,10 +272,6 @@ export default function SoundDashboard() {
           </table>
         </div>
       </div>
-      )}
-
-      {activeTab === 'vendors' && (
-        <VendorSection department="SOUND" />
       )}
 
       {/* Add/Edit Modal */}

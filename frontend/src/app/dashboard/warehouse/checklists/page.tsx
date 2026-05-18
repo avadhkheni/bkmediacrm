@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
-import { ClipboardCheck, ClipboardX, PackageCheck, PackageOpen } from "lucide-react";
+import { ClipboardCheck, ClipboardX } from "lucide-react";
 import { useUIStore } from "@/store/uiStore";
+import SearchableMultiSelect from "@/components/SearchableMultiSelect";
 
 export default function ChecklistsPage() {
   const [activeTab, setActiveTab] = useState<'dispatch' | 'return'>('dispatch');
@@ -66,14 +67,20 @@ function DispatchView() {
   const [inquiries, setInquiries] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    inquiryId: string;
+    staffName: string;
+    notes: string;
+    equipmentType: string;
+    warehouseId: string;
+    selectedEquipments: { id: string | number; quantity: number }[];
+  }>({
     inquiryId: "",
     staffName: "",
     notes: "",
     equipmentType: "VIDEO",
-    equipmentId: "",
     warehouseId: "",
-    quantity: 1
+    selectedEquipments: []
   });
 
   const [checklist, setChecklist] = useState([
@@ -102,7 +109,11 @@ function DispatchView() {
       setVideoStock(vidRes.data || []);
       setLedStock((ledRes.data || []).filter((l: any) => l.status === 'AVAILABLE'));
       setSoundStock(sndRes.data || []);
-      setInquiries((inqRes.data || []).filter((i: any) => i.status === 'CONFIRMED' || i.status === 'APPROVED'));
+      
+      const inquiriesList = Array.isArray(inqRes.data) 
+        ? inqRes.data 
+        : inqRes.data?.data || [];
+      setInquiries(inquiriesList.filter((i: any) => i.status === 'CONFIRMED' || i.status === 'APPROVED' || i.status === 'INQUIRY'));
     } catch (error) {
       console.error("Failed to load data", error);
     }
@@ -122,26 +133,26 @@ function DispatchView() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.equipmentId || !form.warehouseId || !form.inquiryId) {
-      addToast("Please select Inquiry, Warehouse, and Equipment", "error");
+    if (!form.warehouseId || !form.inquiryId || form.selectedEquipments.length === 0) {
+      addToast("Please select Inquiry, Warehouse, and at least one Equipment", "error");
       return;
     }
     
     setSubmitting(true);
     try {
-      const itemToDispatch = {
-        videoEquipId: form.equipmentType === 'VIDEO' ? Number(form.equipmentId) : null,
-        ledStockId: form.equipmentType === 'LED' ? Number(form.equipmentId) : null,
-        soundEquipId: form.equipmentType === 'SOUND' ? Number(form.equipmentId) : null,
+      const itemsToDispatch = form.selectedEquipments.map(item => ({
+        videoEquipId: form.equipmentType === 'VIDEO' ? Number(item.id) : null,
+        ledStockId: form.equipmentType === 'LED' ? Number(item.id) : null,
+        soundEquipId: form.equipmentType === 'SOUND' ? Number(item.id) : null,
         warehouseId: Number(form.warehouseId),
-        quantity: Number(form.quantity)
-      };
+        quantity: item.quantity
+      }));
 
       await api.post("/warehouse/dispatch", {
         inquiryId: Number(form.inquiryId),
         staffName: form.staffName,
         notes: form.notes,
-        items: [itemToDispatch],
+        items: itemsToDispatch,
         itemsToCheck: checklist
       });
       
@@ -165,128 +176,86 @@ function DispatchView() {
             required
             value={form.inquiryId}
             onChange={(e) => setForm({ ...form, inquiryId: e.target.value })}
-            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all appearance-none"
+            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium appearance-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
           >
             <option value="">Select Inquiry...</option>
-            {inquiries.map((inq: any) => (
-              <option key={inq.id} value={String(inq.id)}>
-                #{inq.inquiryNumber || inq.id} - {inq.eventName} ({inq.client?.name || "No Client"})
-              </option>
-            ))}
+            {inquiries.map(i => <option key={i.id} value={String(i.id)}>{i.inquiryNumber} - {i.eventName}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Staff Name *</label>
+          <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Staff Assigned *</label>
           <input
-            type="text"
             required
+            type="text"
             value={form.staffName}
             onChange={(e) => setForm({ ...form, staffName: e.target.value })}
-            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-            placeholder="Who is verifying?"
+            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+            placeholder="Name of staff taking equipment"
           />
         </div>
-      </div>
 
-      {/* Equipment Selection */}
-      <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 space-y-4">
-        <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-4">
-          <PackageCheck className="w-5 h-5 text-slate-400" /> Equipment Details
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Source Warehouse *</label>
-            <select
-              required
-              value={form.warehouseId}
-              onChange={(e) => setForm({ ...form, warehouseId: e.target.value, equipmentId: "" })}
-              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium appearance-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-            >
-              <option value="">Select Warehouse</option>
-              {warehouses.map(w => <option key={w.id} value={String(w.id)}>{w.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Equipment Type</label>
-            <select
-              value={form.equipmentType}
-              onChange={(e) => setForm({ ...form, equipmentType: e.target.value, equipmentId: "" })}
-              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium appearance-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-            >
-              <option value="VIDEO">Video Equipment</option>
-              <option value="LED">LED Stock</option>
-              <option value="SOUND">Sound Equipment</option>
-            </select>
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Select Equipment *</label>
-            <select
-              required
-              value={form.equipmentId}
-              onChange={(e) => setForm({ ...form, equipmentId: e.target.value })}
-              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium appearance-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-            >
-              <option value="">Select Item...</option>
-              {form.equipmentType === 'VIDEO' && (
-                videoStock
-                  .filter(v => form.warehouseId && v.warehouseId === Number(form.warehouseId))
-                  .map(v => {
-                    const whName = warehouses.find(w => w.id === v.warehouseId)?.name || "Unassigned Warehouse";
-                    return (
-                      <option key={v.id} value={String(v.id)}>
-                        {v.name} ({v.availableQuantity} avail / {v.totalQuantity} total) [{whName}]
-                      </option>
-                    );
-                  })
-              )}
-              {form.equipmentType === 'LED' && (
-                ledStock
-                  .filter(l => form.warehouseId && l.warehouseId === Number(form.warehouseId))
-                  .map(l => {
-                    const whName = warehouses.find(w => w.id === l.warehouseId)?.name || "Unassigned Warehouse";
-                    return (
-                      <option key={l.id} value={String(l.id)}>
-                        {l.companyName} {l.ledType} ({l.availableQuantity} avail / {l.totalCabinets} total) [{whName}]
-                      </option>
-                    );
-                  })
-              )}
-              {form.equipmentType === 'SOUND' && (
-                soundStock
-                  .filter(s => form.warehouseId && s.warehouseId === Number(form.warehouseId))
-                  .map(s => {
-                    const whName = warehouses.find(w => w.id === s.warehouseId)?.name || "Unassigned Warehouse";
-                    return (
-                      <option key={s.id} value={String(s.id)}>
-                        {s.name} ({s.availableQuantity} avail / {s.totalQuantity} total) [{whName}]
-                      </option>
-                    );
-                  })
-              )}
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Quantity To Dispatch *</label>
-            <input
-              type="number"
-              required
-              min="1"
-              value={form.quantity}
-              onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })}
-              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-            />
-          </div>
+        <div>
+          <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Dispatching Warehouse *</label>
+          <select
+            required
+            value={form.warehouseId}
+            onChange={(e) => setForm({ ...form, warehouseId: e.target.value, selectedEquipments: [] })}
+            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium appearance-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+          >
+            <option value="">Select Warehouse First...</option>
+            {warehouses.map(w => <option key={w.id} value={String(w.id)}>{w.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Equipment Type</label>
+          <select
+            value={form.equipmentType}
+            onChange={(e) => setForm({ ...form, equipmentType: e.target.value, selectedEquipments: [] })}
+            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium appearance-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+          >
+            <option value="VIDEO">Video Equipment</option>
+            <option value="LED">LED Stock</option>
+            <option value="SOUND">Sound Equipment</option>
+          </select>
+        </div>
+        <div className="md:col-span-2">
+          <SearchableMultiSelect
+            label="Select Dispatched Equipment *"
+            placeholder={form.warehouseId ? "Search & select items..." : "Please select a warehouse first to load available items"}
+            disabled={!form.warehouseId}
+            emptyMessage={form.warehouseId ? "No items found for this warehouse" : "Select a warehouse first"}
+            options={(() => {
+              if (!form.warehouseId) return [];
+              if (form.equipmentType === 'VIDEO') {
+                return videoStock
+                  .filter(v => v.warehouseId === Number(form.warehouseId))
+                  .map(v => ({ id: v.id, name: v.name, subtext: `${v.availableQuantity} available`, maxQuantity: v.availableQuantity }));
+              }
+              if (form.equipmentType === 'LED') {
+                return ledStock
+                  .filter(l => l.warehouseId === Number(form.warehouseId))
+                  .map(l => ({ id: l.id, name: `${l.companyName} ${l.ledType}`, subtext: `${l.availableQuantity} available`, maxQuantity: l.availableQuantity }));
+              }
+              if (form.equipmentType === 'SOUND') {
+                return soundStock
+                  .filter(s => s.warehouseId === Number(form.warehouseId))
+                  .map(s => ({ id: s.id, name: s.name, subtext: `${s.availableQuantity} available`, maxQuantity: s.availableQuantity }));
+              }
+              return [];
+            })()}
+            selectedItems={form.selectedEquipments}
+            onChange={(items) => setForm({ ...form, selectedEquipments: items })}
+          />
         </div>
       </div>
 
       {/* Checklist */}
       <div>
-        <label className="block text-xs font-bold text-slate-400 uppercase mb-3">Verification Checklist</label>
+        <label className="block text-xs font-bold text-slate-400 uppercase mb-3">Dispatch Checklist</label>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {checklist.map((item, idx) => (
             <div key={idx} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-slate-50 dark:bg-slate-900/50 p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-              <div className="flex items-center gap-3 w-48 shrink-0">
+              <div className="flex items-center gap-3 w-56 shrink-0">
                 <input 
                   type="checkbox" 
                   checked={item.isPassed}
@@ -313,8 +282,8 @@ function DispatchView() {
           value={form.notes}
           onChange={(e) => setForm({ ...form, notes: e.target.value })}
           rows={3}
-          className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium resize-none placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-          placeholder="Any additional comments before dispatch..."
+          className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium resize-none placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+          placeholder="Any additional comments..."
         />
       </div>
 
@@ -339,24 +308,33 @@ function ReturnView() {
   const [inquiries, setInquiries] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    inquiryId: string;
+    staffName: string;
+    notes: string;
+    penaltyAmount: string;
+    equipmentType: string;
+    warehouseId: string;
+    selectedEquipments: { id: string | number; quantity: number }[];
+    isDamaged: boolean;
+  }>({
     inquiryId: "",
     staffName: "",
     notes: "",
     penaltyAmount: "",
     equipmentType: "VIDEO",
-    equipmentId: "",
     warehouseId: "",
-    quantity: 1,
+    selectedEquipments: [],
     isDamaged: false
   });
 
   const [checklist, setChecklist] = useState([
-    { name: "Equipment Returned", isPassed: false, notes: "" },
-    { name: "Accessories Returned", isPassed: false, notes: "" },
-    { name: "No Damage Found", isPassed: false, notes: "" },
-    { name: "No Missing Parts", isPassed: false, notes: "" },
-    { name: "Working Condition Checked", isPassed: false, notes: "" },
+    { name: "Equipment Checked", isPassed: false, notes: "" },
+    { name: "Battery Included", isPassed: false, notes: "" },
+    { name: "Charger Included", isPassed: false, notes: "" },
+    { name: "Cable Included", isPassed: false, notes: "" },
+    { name: "Tested", isPassed: false, notes: "" },
+    { name: "No Damage", isPassed: false, notes: "" },
   ]);
 
   useEffect(() => {
@@ -367,16 +345,20 @@ function ReturnView() {
     try {
       const [whRes, vidRes, ledRes, sndRes, inqRes] = await Promise.all([
         api.get("/warehouse"),
-        api.get("/video/equipment"), 
+        api.get("/video/equipment"),
         api.get("/led/stock"),
         api.get("/sound/equipment"),
         api.get("/inquiries")
       ]);
       setWarehouses(whRes.data || []);
-      setVideoStock((vidRes.data || []).filter((v: any) => v.inUseQuantity > 0 || v.status === 'IN_USE'));
-      setLedStock((ledRes.data || []).filter((l: any) => l.inUseQuantity > 0 || l.status === 'IN_USE'));
-      setSoundStock((sndRes.data || []).filter((s: any) => s.inUseQuantity > 0 || s.status === 'IN_USE'));
-      setInquiries(inqRes.data || []);
+      setVideoStock(vidRes.data || []);
+      setLedStock(ledRes.data || []);
+      setSoundStock(sndRes.data || []);
+      
+      const inquiriesList = Array.isArray(inqRes.data) 
+        ? inqRes.data 
+        : inqRes.data?.data || [];
+      setInquiries(inquiriesList.filter((i: any) => i.status === 'CONFIRMED' || i.status === 'APPROVED' || i.status === 'COMPLETED' || i.status === 'INQUIRY'));
     } catch (error) {
       console.error("Failed to load data", error);
     }
@@ -396,28 +378,28 @@ function ReturnView() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.equipmentId || !form.warehouseId || !form.inquiryId) {
-      addToast("Please select Inquiry, Warehouse, and Equipment", "error");
+    if (!form.warehouseId || !form.inquiryId || form.selectedEquipments.length === 0) {
+      addToast("Please select Inquiry, Warehouse, and at least one Equipment", "error");
       return;
     }
     
     setSubmitting(true);
     try {
-      const itemToReturn = {
-        videoEquipId: form.equipmentType === 'VIDEO' ? Number(form.equipmentId) : null,
-        ledStockId: form.equipmentType === 'LED' ? Number(form.equipmentId) : null,
-        soundEquipId: form.equipmentType === 'SOUND' ? Number(form.equipmentId) : null,
+      const itemsToReturn = form.selectedEquipments.map(item => ({
+        videoEquipId: form.equipmentType === 'VIDEO' ? Number(item.id) : null,
+        ledStockId: form.equipmentType === 'LED' ? Number(item.id) : null,
+        soundEquipId: form.equipmentType === 'SOUND' ? Number(item.id) : null,
         warehouseId: Number(form.warehouseId),
-        quantity: Number(form.quantity),
+        quantity: item.quantity,
         isDamaged: form.isDamaged
-      };
+      }));
 
       await api.post("/warehouse/return", {
         inquiryId: Number(form.inquiryId),
         staffName: form.staffName,
         notes: form.notes,
-        penaltyAmount: form.penaltyAmount,
-        items: [itemToReturn],
+        penaltyAmount: form.penaltyAmount ? Number(form.penaltyAmount) : undefined,
+        items: itemsToReturn,
         itemsToCheck: checklist
       });
       
@@ -425,7 +407,7 @@ function ReturnView() {
       router.push("/dashboard/warehouse/inventory");
     } catch (error: any) {
       console.error("Return failed", error);
-      addToast(error.response?.data?.message || "Failed to process return.", "error");
+      addToast(error.response?.data?.message || "Failed to submit return.", "error");
     } finally {
       setSubmitting(false);
     }
@@ -436,123 +418,81 @@ function ReturnView() {
       {/* Basic Details */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Select Dispatched Inquiry *</label>
+          <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Select Inquiry *</label>
           <select
             required
             value={form.inquiryId}
             onChange={(e) => setForm({ ...form, inquiryId: e.target.value })}
-            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all appearance-none"
+            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
           >
             <option value="">Select Inquiry...</option>
-            {inquiries.map((inq: any) => (
-              <option key={inq.id} value={String(inq.id)}>
-                #{inq.inquiryNumber || inq.id} - {inq.eventName} ({inq.client?.name || "No Client"})
-              </option>
-            ))}
+            {inquiries.map(i => <option key={i.id} value={String(i.id)}>{i.inquiryNumber} - {i.eventName}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Staff Name *</label>
+          <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Staff Returning *</label>
           <input
-            type="text"
             required
+            type="text"
             value={form.staffName}
             onChange={(e) => setForm({ ...form, staffName: e.target.value })}
-            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-            placeholder="Who is verifying?"
+            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+            placeholder="Name of staff returning equipment"
           />
         </div>
-      </div>
 
-      {/* Equipment Selection */}
-      <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 space-y-4">
-        <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-4">
-          <PackageOpen className="w-5 h-5 text-slate-400" /> Equipment Details
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Returning To Warehouse *</label>
-            <select
-              required
-              value={form.warehouseId}
-              onChange={(e) => setForm({ ...form, warehouseId: e.target.value, equipmentId: "" })}
-              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-            >
-              <option value="">Select Warehouse</option>
-              {warehouses.map(w => <option key={w.id} value={String(w.id)}>{w.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Equipment Type</label>
-            <select
-              value={form.equipmentType}
-              onChange={(e) => setForm({ ...form, equipmentType: e.target.value, equipmentId: "" })}
-              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-            >
-              <option value="VIDEO">Video Equipment</option>
-              <option value="LED">LED Stock</option>
-              <option value="SOUND">Sound Equipment</option>
-            </select>
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Select Dispatched Equipment *</label>
-            <select
-              required
-              value={form.equipmentId}
-              onChange={(e) => setForm({ ...form, equipmentId: e.target.value })}
-              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-            >
-              <option value="">Select Item...</option>
-              {form.equipmentType === 'VIDEO' && (
-                videoStock
-                  .filter(v => form.warehouseId && v.warehouseId === Number(form.warehouseId))
-                  .map(v => {
-                    const whName = warehouses.find(w => w.id === v.warehouseId)?.name || "Unassigned Warehouse";
-                    return (
-                      <option key={v.id} value={String(v.id)}>
-                        {v.name} ({v.inUseQuantity || 0} dispatched) [{whName}]
-                      </option>
-                    );
-                  })
-              )}
-              {form.equipmentType === 'LED' && (
-                ledStock
-                  .filter(l => form.warehouseId && l.warehouseId === Number(form.warehouseId))
-                  .map(l => {
-                    const whName = warehouses.find(w => w.id === l.warehouseId)?.name || "Unassigned Warehouse";
-                    return (
-                      <option key={l.id} value={String(l.id)}>
-                        {l.companyName} {l.ledType} ({l.inUseQuantity || 0} dispatched) [{whName}]
-                      </option>
-                    );
-                  })
-              )}
-              {form.equipmentType === 'SOUND' && (
-                soundStock
-                  .filter(s => form.warehouseId && s.warehouseId === Number(form.warehouseId))
-                  .map(s => {
-                    const whName = warehouses.find(w => w.id === s.warehouseId)?.name || "Unassigned Warehouse";
-                    return (
-                      <option key={s.id} value={String(s.id)}>
-                        {s.name} ({s.inUseQuantity || 0} dispatched) [{whName}]
-                      </option>
-                    );
-                  })
-              )}
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Quantity Returned *</label>
-            <input
-              type="number"
-              required
-              min="1"
-              value={form.quantity}
-              onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })}
-              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-            />
-          </div>
+        <div>
+          <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Return to Warehouse *</label>
+          <select
+            required
+            value={form.warehouseId}
+            onChange={(e) => setForm({ ...form, warehouseId: e.target.value, selectedEquipments: [] })}
+            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+          >
+            <option value="">Select Warehouse First...</option>
+            {warehouses.map(w => <option key={w.id} value={String(w.id)}>{w.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Equipment Type</label>
+          <select
+            value={form.equipmentType}
+            onChange={(e) => setForm({ ...form, equipmentType: e.target.value, selectedEquipments: [] })}
+            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-white font-medium appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+          >
+            <option value="VIDEO">Video Equipment</option>
+            <option value="LED">LED Stock</option>
+            <option value="SOUND">Sound Equipment</option>
+          </select>
+        </div>
+        <div className="md:col-span-2">
+          <SearchableMultiSelect
+            label="Select Returning Equipment *"
+            placeholder={form.warehouseId ? "Search & select items..." : "Please select a warehouse first to load dispatched items"}
+            disabled={!form.warehouseId}
+            emptyMessage={form.warehouseId ? "No dispatched items found for this warehouse" : "Select a warehouse first"}
+            options={(() => {
+              if (!form.warehouseId) return [];
+              if (form.equipmentType === 'VIDEO') {
+                return videoStock
+                  .filter(v => v.warehouseId === Number(form.warehouseId))
+                  .map(v => ({ id: v.id, name: v.name, subtext: `${v.inUseQuantity || 0} dispatched`, maxQuantity: v.inUseQuantity || 0 }));
+              }
+              if (form.equipmentType === 'LED') {
+                return ledStock
+                  .filter(l => l.warehouseId === Number(form.warehouseId))
+                  .map(l => ({ id: l.id, name: `${l.companyName} ${l.ledType}`, subtext: `${l.inUseQuantity || 0} dispatched`, maxQuantity: l.inUseQuantity || 0 }));
+              }
+              if (form.equipmentType === 'SOUND') {
+                return soundStock
+                  .filter(s => s.warehouseId === Number(form.warehouseId))
+                  .map(s => ({ id: s.id, name: s.name, subtext: `${s.inUseQuantity || 0} dispatched`, maxQuantity: s.inUseQuantity || 0 }));
+              }
+              return [];
+            })()}
+            selectedItems={form.selectedEquipments}
+            onChange={(items) => setForm({ ...form, selectedEquipments: items })}
+          />
         </div>
       </div>
 

@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { Plus, Pencil, Trash2, Users } from "lucide-react";
-import VendorSection from "@/components/VendorSection";
 
 interface LedStock {
   id: number;
@@ -33,7 +32,7 @@ export default function LedDepartmentPage() {
 
   const [stock, setStock] = useState<LedStock[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'stock' | 'calculator' | 'dispatch' | 'vendors'>('stock');
+  const [activeTab, setActiveTab] = useState<'stock' | 'calculator' | 'dispatch'>('stock');
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
 
   // Calculator State
@@ -121,14 +120,7 @@ export default function LedDepartmentPage() {
         >
           Dispatch Overview
         </button>
-        <button 
-          onClick={() => setActiveTab('vendors')}
-          className={`px-6 py-4 font-medium text-sm transition-colors border-b-2 ${
-            activeTab === 'vendors' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
-          } flex items-center gap-2`}
-        >
-          <Users className="w-4 h-4" /> Vendors
-        </button>
+        
       </div>
 
       {activeTab === 'stock' && (
@@ -351,9 +343,7 @@ export default function LedDepartmentPage() {
         </div>
       )}
 
-      {activeTab === 'vendors' && (
-        <VendorSection department="LED" />
-      )}
+      
     </div>
   );
 }

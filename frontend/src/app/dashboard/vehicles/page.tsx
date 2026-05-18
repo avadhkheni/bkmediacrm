@@ -240,10 +240,13 @@ export default function VehiclesMasterPage() {
                 <div>
                   {/* Top Stats */}
                   <div className="flex justify-between items-start">
-                    <span className={`inline-flex px-3 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider ${
-                      vehicle.vehicleType === "TRUCK" ? "bg-red-50 dark:bg-red-950/30 text-red-650 dark:text-red-400" :
-                      vehicle.vehicleType === "VAN" ? "bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400" :
-                      "bg-slate-50 dark:bg-slate-900/60 text-slate-650 dark:text-slate-400"
+                    <span className={`inline-flex px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wider border ${
+                      vehicle.vehicleType === "TRUCK" ? "bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-450 border-rose-100 dark:border-rose-900/30" :
+                      vehicle.vehicleType === "VAN" ? "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-450 border-blue-100 dark:border-blue-900/30" :
+                      vehicle.vehicleType === "TEMPO" ? "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-450 border-amber-100 dark:border-amber-900/30" :
+                      vehicle.vehicleType === "CAR" ? "bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-450 border-purple-100 dark:border-purple-900/30" :
+                      vehicle.vehicleType === "BIKE" ? "bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-450 border-teal-100 dark:border-teal-900/30" :
+                      "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-350 border-slate-200 dark:border-slate-700"
                     }`}>
                       {vehicle.vehicleType}
                     </span>

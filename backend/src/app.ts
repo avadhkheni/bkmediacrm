@@ -51,6 +51,7 @@ import analyticsRoutes from './routes/analytics.routes';
 import warehouseRoutes from './routes/warehouse.routes';
 import officeRoutes from './routes/office.routes';
 import vendorsRoutes from './routes/vendors.routes';
+import rolesRoutes from './routes/roles.routes';
 
 // Test Route
 app.get('/api/v1/health', (req, res) => {
@@ -79,5 +80,6 @@ app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1/warehouse', warehouseRoutes);
 app.use('/api/v1/office', officeRoutes);
 app.use('/api/v1/vendors', vendorsRoutes);
+app.use('/api/v1/roles', rolesRoutes);
 
 export default app;
