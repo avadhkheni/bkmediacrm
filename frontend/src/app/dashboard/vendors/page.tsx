@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import api from "@/lib/api";
 import { 
   Plus, 
@@ -29,13 +29,15 @@ import {
   ArrowRightLeft,
   AlertCircle,
   Truck,
-  FileText
+  FileText,
+  Download
 } from "lucide-react";
 
 interface VendorProduct {
   id: number;
   name: string;
   category: string;
+  quantity: number;
   ratePerDay: number;
 }
 
@@ -114,6 +116,15 @@ export default function VendorsMasterPage() {
     returnedFromEventDate: "",
     returnedToVendorDate: ""
   });
+
+  const [rentalItems, setRentalItems] = useState<Array<{
+    itemName: string;
+    quantity: string;
+    pricePerDay: string;
+    totalCost: string;
+  }>>([
+    { itemName: "", quantity: "1", pricePerDay: "", totalCost: "" }
+  ]);
   
   // Modals & Submitting
   const [showVendorModal, setShowVendorModal] = useState(false);
@@ -138,8 +149,32 @@ export default function VendorsMasterPage() {
   const [productFormData, setProductFormData] = useState({
     name: "",
     category: "VIDEO",
+    quantity: "1",
     ratePerDay: ""
   });
+
+  const [downloadingRentalId, setDownloadingRentalId] = useState<number | null>(null);
+
+  const handleDownloadIndividualRentalPdf = async (rentalId: number) => {
+    setDownloadingRentalId(rentalId);
+    try {
+      const response = await api.get(`/pdf/vendor-rentals/${rentalId}`, {
+        responseType: "blob",
+      });
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const link = document.createElement("a");
+      link.href = window.URL.createObjectURL(blob);
+      link.download = `vendor-rental-challan-${rentalId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("Failed to export PDF", error);
+      alert("Failed to export vendor rental challan PDF.");
+    } finally {
+      setDownloadingRentalId(null);
+    }
+  };
 
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
@@ -212,24 +247,35 @@ export default function VendorsMasterPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const payload = {
-        vendorId: Number(rentalFormData.vendorId),
-        itemName: rentalFormData.itemName,
-        quantity: Number(rentalFormData.quantity || 1),
-        pricePerDay: Number(rentalFormData.pricePerDay),
-        totalCost: Number(rentalFormData.totalCost || (Number(rentalFormData.pricePerDay) * Number(rentalFormData.quantity || 1))),
-        inquiryId: rentalFormData.inquiryId ? Number(rentalFormData.inquiryId) : null,
-        rentedDate: rentalFormData.rentedDate,
-        endDate: rentalFormData.endDate || null,
-        notes: rentalFormData.notes,
-        status: rentalFormData.status,
-        returnedFromEventDate: rentalFormData.returnedFromEventDate || null,
-        returnedToVendorDate: rentalFormData.returnedToVendorDate || null
-      };
-
       if (editingRentalId) {
+        const payload = {
+          vendorId: Number(rentalFormData.vendorId),
+          itemName: rentalItems[0].itemName,
+          quantity: Number(rentalItems[0].quantity || 1),
+          pricePerDay: Number(rentalItems[0].pricePerDay),
+          totalCost: Number(rentalItems[0].totalCost || (Number(rentalItems[0].pricePerDay) * Number(rentalItems[0].quantity || 1))),
+          inquiryId: rentalFormData.inquiryId ? Number(rentalFormData.inquiryId) : null,
+          rentedDate: rentalFormData.rentedDate,
+          endDate: rentalFormData.endDate || null,
+          notes: rentalFormData.notes,
+          status: rentalFormData.status,
+          returnedFromEventDate: rentalFormData.returnedFromEventDate || null,
+          returnedToVendorDate: rentalFormData.returnedToVendorDate || null
+        };
         await api.patch(`/vendors/rentals/${editingRentalId}`, payload);
       } else {
+        const payload = rentalItems.map(item => ({
+          vendorId: Number(rentalFormData.vendorId),
+          itemName: item.itemName,
+          quantity: Number(item.quantity || 1),
+          pricePerDay: Number(item.pricePerDay),
+          totalCost: Number(item.totalCost || (Number(item.pricePerDay) * Number(item.quantity || 1))),
+          inquiryId: rentalFormData.inquiryId ? Number(rentalFormData.inquiryId) : null,
+          rentedDate: rentalFormData.rentedDate,
+          endDate: rentalFormData.endDate || null,
+          notes: rentalFormData.notes,
+          status: "RENTED"
+        }));
         await api.post("/vendors/rentals", payload);
       }
 
@@ -249,6 +295,7 @@ export default function VendorsMasterPage() {
         returnedFromEventDate: "",
         returnedToVendorDate: ""
       });
+      setRentalItems([{ itemName: "", quantity: "1", pricePerDay: "", totalCost: "" }]);
       fetchRentals();
     } catch (error) {
       console.error("Failed to save vendor rental", error);
@@ -299,6 +346,12 @@ export default function VendorsMasterPage() {
       returnedFromEventDate: r.returnedFromEventDate ? new Date(r.returnedFromEventDate).toISOString().split("T")[0] : "",
       returnedToVendorDate: r.returnedToVendorDate ? new Date(r.returnedToVendorDate).toISOString().split("T")[0] : ""
     });
+    setRentalItems([{
+      itemName: r.itemName,
+      quantity: String(r.quantity),
+      pricePerDay: String(r.pricePerDay),
+      totalCost: String(r.totalCost)
+    }]);
     setEditingRentalId(r.id);
     setShowRentalModal(true);
   };
@@ -377,6 +430,7 @@ export default function VendorsMasterPage() {
       const payload = {
         name: productFormData.name,
         category: productFormData.category,
+        quantity: Number(productFormData.quantity || 1),
         ratePerDay: Number(productFormData.ratePerDay)
       };
 
@@ -391,6 +445,7 @@ export default function VendorsMasterPage() {
       setProductFormData({
         name: "",
         category: selectedVendorForProduct.department ? selectedVendorForProduct.department.split(",")[0] : "VIDEO",
+        quantity: "1",
         ratePerDay: ""
       });
       fetchVendors();
@@ -407,6 +462,7 @@ export default function VendorsMasterPage() {
     setProductFormData({
       name: product.name,
       category: product.category,
+      quantity: String(product.quantity || 1),
       ratePerDay: String(product.ratePerDay)
     });
     setEditingProductId(product.id);
@@ -515,6 +571,7 @@ export default function VendorsMasterPage() {
                   returnedFromEventDate: "",
                   returnedToVendorDate: ""
                 });
+                setRentalItems([{ itemName: "", quantity: "1", pricePerDay: "", totalCost: "" }]);
                 setShowRentalModal(true);
               }}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20 active:scale-95"
@@ -618,7 +675,7 @@ export default function VendorsMasterPage() {
               </div>
             ) : filteredVendors.length === 0 ? (
               <div className="py-24 text-center text-slate-400">
-                <Building2 className="w-12 h-12 mx-auto mb-3 opacity-30 text-slate-450" />
+                <Building2 className="w-12 h-12 mx-auto mb-3 opacity-30 text-slate-400 dark:text-slate-500" />
                 <p className="font-semibold text-sm">No vendors found matching criteria.</p>
                 <p className="text-xs text-slate-500 mt-1">Try updating search filters or creating a profile.</p>
               </div>
@@ -639,7 +696,7 @@ export default function VendorsMasterPage() {
                     {filteredVendors.map((vendor) => {
                       const isExpanded = expandedVendorId === vendor.id;
                       return (
-                        <tr key={`row-group-${vendor.id}`} className="contents">
+                        <React.Fragment key={`row-group-${vendor.id}`}>
                           <tr 
                             className="hover:bg-slate-50/50 dark:hover:bg-slate-900/10 transition-colors group cursor-pointer"
                             onClick={() => setExpandedVendorId(isExpanded ? null : vendor.id)}
@@ -710,7 +767,7 @@ export default function VendorsMasterPage() {
                               <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button
                                   onClick={() => handleVendorEdit(vendor)}
-                                  className="p-2 text-slate-400 hover:text-blue-650 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all"
+                                  className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all"
                                   title="Edit Profile"
                                 >
                                   <Pencil className="w-4 h-4" />
@@ -735,16 +792,16 @@ export default function VendorsMasterPage() {
                                         <Package className="w-4 h-4 text-blue-500" />
                                         {vendor.name}'s Rental Products Catalog
                                       </h4>
-                                      <p className="text-xs text-slate-450 mt-0.5">Register items available from this vendor to rent inside Quotation and Rental orders.</p>
+                                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Register items available from this vendor to rent inside Quotation and Rental orders.</p>
                                     </div>
                                     <button
                                       onClick={() => {
                                         setSelectedVendorForProduct(vendor);
                                         setEditingProductId(null);
-                                        setProductFormData({ name: "", category: vendor.department ? vendor.department.split(",")[0] : "VIDEO", ratePerDay: "" });
+                                        setProductFormData({ name: "", category: vendor.department ? vendor.department.split(",")[0] : "VIDEO", quantity: "1", ratePerDay: "" });
                                         setShowProductModal(true);
                                       }}
-                                      className="text-xs bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-700 dark:hover:bg-slate-650 px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 transition-all shadow-sm shadow-black/10"
+                                      className="text-xs bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-700 dark:hover:bg-slate-600 px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 transition-all shadow-sm shadow-black/10"
                                     >
                                       <PlusCircle className="w-4 h-4" /> Add Rental Item
                                     </button>
@@ -758,15 +815,16 @@ export default function VendorsMasterPage() {
                                   ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                       {vendor.products.map((prod) => (
-                                        <div key={prod.id} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-105 dark:border-slate-800/80 shadow-sm flex items-center justify-between group/prod hover:border-blue-500/20 transition-all">
+                                        <div key={prod.id} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm flex items-center justify-between group/prod hover:border-blue-500/20 transition-all">
                                           <div className="flex items-center gap-3">
                                             <div className="w-9 h-9 bg-slate-50 dark:bg-slate-800 rounded-lg flex items-center justify-center">
                                               <Tag className="w-4 h-4 text-slate-400" />
                                             </div>
                                             <div>
                                               <p className="text-sm font-bold text-slate-800 dark:text-white leading-tight">{prod.name}</p>
-                                              <div className="flex items-center gap-2 mt-1">
+                                              <div className="flex items-center gap-2 mt-1 flex-wrap">
                                                 <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded uppercase">{prod.category}</span>
+                                                <span className="text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded">Qty: {prod.quantity || 1}</span>
                                                 <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">₹{Number(prod.ratePerDay).toLocaleString()} / day</span>
                                               </div>
                                             </div>
@@ -780,7 +838,7 @@ export default function VendorsMasterPage() {
                                             </button>
                                             <button
                                               onClick={() => handleProductDelete(prod.id)}
-                                              className="p-1.5 text-slate-400 hover:text-red-650 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
+                                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
                                             >
                                               <Trash2 className="w-3.5 h-3.5" />
                                             </button>
@@ -793,7 +851,7 @@ export default function VendorsMasterPage() {
                               </td>
                             </tr>
                           )}
-                        </tr>
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
@@ -854,7 +912,7 @@ export default function VendorsMasterPage() {
                 <p className="font-semibold text-sm">Loading rentals history...</p>
               </div>
             ) : filteredRentals.length === 0 ? (
-              <div className="py-24 text-center text-slate-450">
+              <div className="py-24 text-center text-slate-400 dark:text-slate-500">
                 <ArrowRightLeft className="w-12 h-12 mx-auto mb-3 opacity-30 text-blue-500" />
                 <p className="font-semibold text-sm">No outside vendor rentals logged.</p>
                 <p className="text-xs text-slate-500 mt-1">Hired equipment from vendors will list here for tracking return timelines.</p>
@@ -879,7 +937,7 @@ export default function VendorsMasterPage() {
                       <tr key={`rental-row-${rental.id}`} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/10 transition-colors group">
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-slate-50 dark:bg-slate-900 rounded-xl flex items-center justify-center font-bold border border-slate-100 dark:border-slate-800 shrink-0">
+                            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-xl flex items-center justify-center font-bold text-sm shrink-0">
                               {rental.itemName.charAt(0).toUpperCase()}
                             </div>
                             <div>
@@ -913,7 +971,7 @@ export default function VendorsMasterPage() {
                           {rental.inquiry ? (
                             <div className="max-w-[200px]">
                               <span className="font-bold text-slate-800 dark:text-slate-200 text-sm block truncate" title={rental.inquiry.eventName}>{rental.inquiry.eventName}</span>
-                              <span className="text-xs text-slate-450 block truncate mt-0.5">Client: {rental.inquiry.client?.name || "General"}</span>
+                              <span className="text-xs text-slate-400 dark:text-slate-500 block truncate mt-0.5">Client: {rental.inquiry.client?.name || "General"}</span>
                             </div>
                           ) : (
                             <span className="text-xs text-slate-400 font-medium italic">General Rental</span>
@@ -932,7 +990,7 @@ export default function VendorsMasterPage() {
                               </span>
                               <button
                                 onClick={() => handleMarkReturnedFromEvent(rental)}
-                                className="text-[10px] font-bold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 text-blue-600 dark:text-blue-450 px-2 py-1 rounded-lg border border-blue-200/30 hover:border-blue-300 transition-all block text-center"
+                                className="text-[10px] font-bold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-lg border border-blue-200/30 hover:border-blue-300 transition-all block text-center"
                               >
                                 Mark Returned
                               </button>
@@ -963,6 +1021,18 @@ export default function VendorsMasterPage() {
                         <td className="py-4 px-6 text-right">
                           <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
+                              onClick={() => handleDownloadIndividualRentalPdf(rental.id)}
+                              disabled={downloadingRentalId === rental.id}
+                              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-xl transition-all disabled:opacity-50"
+                              title="Download Rental Challan"
+                            >
+                              {downloadingRentalId === rental.id ? (
+                                <span className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin inline-block" />
+                              ) : (
+                                <Download className="w-4 h-4" />
+                              )}
+                            </button>
+                            <button
                               onClick={() => handleRentalEdit(rental)}
                               className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all"
                               title="Edit Rental Details"
@@ -971,7 +1041,7 @@ export default function VendorsMasterPage() {
                             </button>
                             <button
                               onClick={() => handleRentalDelete(rental.id)}
-                              className="p-2 text-slate-400 hover:text-red-650 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all"
+                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all"
                               title="Delete Rental Record"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -1153,7 +1223,7 @@ export default function VendorsMasterPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase mb-1.5 tracking-wider font-mono">Category / Dept *</label>
                     <select
@@ -1165,6 +1235,19 @@ export default function VendorsMasterPage() {
                       <option value="LED">LED</option>
                       <option value="SOUND">SOUND</option>
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase mb-1.5 tracking-wider font-mono">Quantity *</label>
+                    <input 
+                      type="number" 
+                      required
+                      min="1"
+                      value={productFormData.quantity}
+                      onChange={(e) => setProductFormData({...productFormData, quantity: e.target.value})}
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3.5 text-sm outline-none focus:ring-4 focus:ring-blue-500/10 transition-all text-slate-900 dark:text-white font-bold"
+                      placeholder="1"
+                    />
                   </div>
 
                   <div>
@@ -1255,64 +1338,108 @@ export default function VendorsMasterPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="col-span-2">
-                    <label className="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase mb-1.5 tracking-wider font-mono">Item Name *</label>
-                    <input 
-                      type="text" 
-                      required 
-                      value={rentalFormData.itemName}
-                      onChange={(e) => setRentalFormData({...rentalFormData, itemName: e.target.value})}
-                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3.5 text-sm outline-none focus:ring-4 focus:ring-blue-500/10 transition-all text-slate-900 dark:text-white font-medium"
-                      placeholder="e.g. Video Switcher v-160HD"
-                    />
+                {/* Dynamic Rental Items List */}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <label className="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider font-mono">Rented Items List *</label>
+                    {!editingRentalId && (
+                      <button
+                        type="button"
+                        onClick={() => setRentalItems([...rentalItems, { itemName: "", quantity: "1", pricePerDay: "", totalCost: "" }])}
+                        className="text-xs bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1 border border-blue-200/20 transition-all active:scale-95"
+                      >
+                        <PlusCircle className="w-3.5 h-3.5 text-blue-500" /> Add Another Item
+                      </button>
+                    )}
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase mb-1.5 tracking-wider font-mono">Quantity *</label>
-                    <input 
-                      type="number" 
-                      required 
-                      min="1"
-                      value={rentalFormData.quantity}
-                      onChange={(e) => {
-                        const qty = e.target.value;
-                        const rate = rentalFormData.pricePerDay;
-                        const total = Number(qty || 0) * Number(rate || 0);
-                        setRentalFormData({...rentalFormData, quantity: qty, totalCost: String(total)});
-                      }}
-                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3.5 text-sm outline-none focus:ring-4 focus:ring-blue-500/10 transition-all text-slate-900 dark:text-white font-bold"
-                    />
-                  </div>
-                </div>
+                  <div className="space-y-3">
+                    {rentalItems.map((item, index) => (
+                      <div key={index} className="bg-slate-50/50 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-200/50 dark:border-slate-800/60 relative space-y-3">
+                        {/* Remove button */}
+                        {!editingRentalId && rentalItems.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setRentalItems(rentalItems.filter((_, i) => i !== index))}
+                            className="absolute top-2 right-2 p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-all"
+                            title="Remove Item"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase mb-1.5 tracking-wider font-mono">Price / Day (₹) *</label>
-                    <input 
-                      type="number" 
-                      required 
-                      min="0"
-                      value={rentalFormData.pricePerDay}
-                      onChange={(e) => {
-                        const rate = e.target.value;
-                        const qty = rentalFormData.quantity;
-                        const total = Number(qty || 0) * Number(rate || 0);
-                        setRentalFormData({...rentalFormData, pricePerDay: rate, totalCost: String(total)});
-                      }}
-                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3.5 text-sm outline-none focus:ring-4 focus:ring-blue-500/10 transition-all text-slate-900 dark:text-white font-bold"
-                      placeholder="1000"
-                    />
-                  </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="col-span-2">
+                            <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1 font-mono">Item Name *</label>
+                            <input 
+                              type="text" 
+                              required 
+                              value={item.itemName}
+                              onChange={(e) => {
+                                const newItems = [...rentalItems];
+                                newItems[index].itemName = e.target.value;
+                                setRentalItems(newItems);
+                              }}
+                              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:ring-4 focus:ring-blue-500/10 transition-all text-slate-900 dark:text-white font-medium"
+                              placeholder="e.g. Video Switcher v-160HD"
+                            />
+                          </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase mb-1.5 tracking-wider font-mono">Total Rental Cost (₹)</label>
-                    <input 
-                      type="number" 
-                      readOnly
-                      value={rentalFormData.totalCost}
-                      className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3.5 text-sm text-slate-700 dark:text-slate-300 font-extrabold outline-none"
-                    />
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1 font-mono">Qty *</label>
+                            <input 
+                              type="number" 
+                              required 
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) => {
+                                const qty = e.target.value;
+                                const rate = item.pricePerDay;
+                                const total = Number(qty || 0) * Number(rate || 0);
+                                const newItems = [...rentalItems];
+                                newItems[index].quantity = qty;
+                                newItems[index].totalCost = String(total);
+                                setRentalItems(newItems);
+                              }}
+                              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:ring-4 focus:ring-blue-500/10 transition-all text-slate-900 dark:text-white font-bold"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1 font-mono">Price / Day (₹) *</label>
+                            <input 
+                              type="number" 
+                              required 
+                              min="0"
+                              value={item.pricePerDay}
+                              onChange={(e) => {
+                                const rate = e.target.value;
+                                const qty = item.quantity;
+                                const total = Number(qty || 0) * Number(rate || 0);
+                                const newItems = [...rentalItems];
+                                newItems[index].pricePerDay = rate;
+                                newItems[index].totalCost = String(total);
+                                setRentalItems(newItems);
+                              }}
+                              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:ring-4 focus:ring-blue-500/10 transition-all text-slate-900 dark:text-white font-bold"
+                              placeholder="1000"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1 font-mono">Total Rental Cost (₹)</label>
+                            <input 
+                              type="number" 
+                              readOnly
+                              value={item.totalCost}
+                              className="w-full bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-700 dark:text-slate-350 font-extrabold outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 

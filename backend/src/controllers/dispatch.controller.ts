@@ -45,6 +45,30 @@ export const createDispatchStaff = async (req: Request, res: Response) => {
     if (!vehicle) return res.status(404).json({ message: 'Vehicle not found' });
     if (!staff) return res.status(404).json({ message: 'Staff not found' });
 
+    // Enforce that dispatch checklist must exist and be fully approved (all items passed)
+    const checklist = await prisma.checklist.findFirst({
+      where: {
+        inquiryId: Number(inquiryId),
+        type: 'DISPATCH'
+      },
+      include: {
+        items: true
+      }
+    });
+
+    if (!checklist) {
+      return res.status(400).json({
+        message: 'No Dispatch Checklist found for this Inquiry. Please complete and approve the checklist in the To-Do & Checklists page first.'
+      });
+    }
+
+    const allPassed = checklist.items.length > 0 && checklist.items.every(item => item.isPassed);
+    if (!allPassed) {
+      return res.status(400).json({
+        message: 'The Dispatch Checklist is not fully approved. Please verify and pass all checklist items before proceeding with vehicle assignment.'
+      });
+    }
+
     // Check for duplicate assignment
     const existing = await prisma.dispatchStaffAssignment.findFirst({
       where: {
@@ -69,6 +93,13 @@ export const createDispatchStaff = async (req: Request, res: Response) => {
         staff: { select: { name: true, role: true } },
       },
     });
+
+    // Automatically update vehicle status to READY_TO_LEAVE
+    await prisma.vehicle.update({
+      where: { id: Number(vehicleId) },
+      data: { status: 'READY_TO_LEAVE' }
+    });
+
     res.status(201).json(assignment);
   } catch (error) {
     console.error('Error creating dispatch staff assignment:', error);

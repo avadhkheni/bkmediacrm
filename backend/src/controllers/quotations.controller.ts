@@ -2,7 +2,40 @@ import { Request, Response } from 'express';
 import { prisma } from '../utils/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { generateQuotationNumber } from '../services/quotationNumber.service';
+import { uploadToCloudinary } from '../utils/cloudinary';
 import { calculateGst } from '../services/gst.service';
+import { isQuotationLocked, QUOTATION_LOCKED_MESSAGE } from '../utils/quotationLock';
+import { validateQuotationItemsStock } from '../utils/quotationStockValidation';
+import { mergeQuotationNotes, itemTotalAmount } from '../utils/quotationSourcing';
+
+export const deleteQuotation = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.quotation.findUnique({
+      where: { id: Number(id) },
+      include: { invoice: true }
+    });
+    if (!existing) return res.status(404).json({ message: 'Quotation not found' });
+
+    if (isQuotationLocked(existing) || existing.status === 'APPROVED') {
+      return res.status(403).json({ message: 'Cannot delete an approved or locked quotation' });
+    }
+
+    if (existing.invoice) {
+      return res.status(403).json({ message: 'Cannot delete a quotation that has an invoice' });
+    }
+
+    await prisma.quotation.update({
+      where: { id: Number(id) },
+      data: { deletedAt: new Date() }
+    });
+
+    res.json({ message: 'Quotation deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting quotation:', error);
+    res.status(500).json({ message: 'Error deleting quotation' });
+  }
+};
 
 export const getNextQuotationNumber = async (req: Request, res: Response) => {
   try {
@@ -80,11 +113,18 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
       }
     }
 
+    const stockError = await validateQuotationItemsStock(items);
+    if (stockError) {
+      return res.status(400).json({ message: stockError });
+    }
+
     const quotationNumber = await generateQuotationNumber();
 
     // Compute GST
     const gst = calculateGst(Number(subtotal));
     const effectiveGstRate = Number(gstRate || 18);
+
+    const mergedNotes = mergeQuotationNotes(notes, items);
 
     const quotation = await prisma.$transaction(async (tx) => {
       const q = await tx.quotation.create({
@@ -96,7 +136,7 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
           cgstAmount: gst.cgst,
           sgstAmount: gst.sgst,
           totalAmount: gst.total,
-          notes,
+          notes: mergedNotes,
           createdById: req.user?.userId,
           status: 'DRAFT'
         }
@@ -114,7 +154,10 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
               equipmentType: item.equipmentType,
               ratePerDay: Number(item.ratePerDay),
               days: Number(item.days),
-              totalAmount: Number(item.ratePerDay) * Number(item.days)
+              nos: Number(item.nos || 1),
+              totalAmount: itemTotalAmount(item, category),
+              isVendorRented: !!item.isVendorRented,
+              vendorId: item.vendorId ? Number(item.vendorId) : null
             }
           });
         } else if (category === 'LED') {
@@ -132,7 +175,9 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
               sqftPerDay,
               ratePerSqft: Number(item.ratePerSqft),
               days: Number(item.days),
-              totalAmount
+              totalAmount,
+              isVendorRented: !!item.isVendorRented,
+              vendorId: item.vendorId ? Number(item.vendorId) : null
             }
           });
         } else if (category === 'SOUND') {
@@ -144,7 +189,10 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
               equipmentType: item.equipmentType,
               ratePerDay: Number(item.ratePerDay),
               days: Number(item.days),
-              totalAmount: Number(item.ratePerDay) * Number(item.days)
+              nos: Number(item.nos || 1),
+              totalAmount: itemTotalAmount(item, category),
+              isVendorRented: !!item.isVendorRented,
+              vendorId: item.vendorId ? Number(item.vendorId) : null
             }
           });
         } else if (category === 'OFFICE') {
@@ -156,7 +204,7 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
               rate: Number(item.ratePerDay || item.rate || 0),
               quantity: Number(item.nos || 1),
               days: Number(item.days || 1),
-              totalAmount: Number(item.ratePerDay || item.rate || 0) * Number(item.nos || 1) * Number(item.days || 1)
+              totalAmount: itemTotalAmount(item, category)
             }
           });
         }
@@ -181,7 +229,7 @@ export const getQuotationsByInquiry = async (req: Request, res: Response) => {
   try {
     const { inquiryId } = req.params;
     const quotations = await prisma.quotation.findMany({
-      where: { inquiryId: Number(inquiryId) },
+      where: { inquiryId: Number(inquiryId), deletedAt: null },
       include: {
         videoQuotationItems: true,
         ledQuotationItems: true,
@@ -201,8 +249,9 @@ export const getQuotationById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const quotation = await prisma.quotation.findUnique({
-      where: { id: Number(id) },
+      where: { id: Number(id), deletedAt: null },
       include: {
+        invoice: true,
         inquiry: {
           include: { client: true }
         },
@@ -214,7 +263,7 @@ export const getQuotationById = async (req: Request, res: Response) => {
     });
     
     if (!quotation) return res.status(404).json({ message: 'Quotation not found' });
-    res.json(quotation);
+    res.json({ ...quotation, isLocked: isQuotationLocked(quotation) });
   } catch (error) {
     console.error('Error fetching quotation:', error);
     res.status(500).json({ message: 'Error fetching quotation' });
@@ -226,13 +275,30 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const { subtotal, gstRate, notes, items } = req.body;
 
-    const existing = await prisma.quotation.findUnique({ where: { id: Number(id) } });
+    const existing = await prisma.quotation.findUnique({
+      where: { id: Number(id) },
+      include: { invoice: true }
+    });
     if (!existing) return res.status(404).json({ message: 'Quotation not found' });
+    if (isQuotationLocked(existing)) {
+      return res.status(403).json({ message: QUOTATION_LOCKED_MESSAGE });
+    }
     if (existing.status !== 'DRAFT' && existing.status !== 'APPROVED' && existing.status !== 'REJECTED') {
       return res.status(400).json({ message: 'Only DRAFT, APPROVED, or REJECTED quotations can be edited' });
     }
 
+    if (items && items.length > 0) {
+      const stockError = await validateQuotationItemsStock(items);
+      if (stockError) {
+        return res.status(400).json({ message: stockError });
+      }
+    }
+
     const gst = calculateGst(Number(subtotal));
+    const mergedNotes =
+      items && items.length > 0
+        ? mergeQuotationNotes(notes ?? existing.notes, items)
+        : notes ?? existing.notes;
 
     const updated = await prisma.$transaction(async (tx) => {
       const q = await tx.quotation.update({
@@ -243,7 +309,7 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
           cgstAmount: gst.cgst,
           sgstAmount: gst.sgst,
           totalAmount: gst.total,
-          notes,
+          notes: mergedNotes,
           ...(existing.status === 'REJECTED' && { status: 'DRAFT' })
         }
       });
@@ -276,12 +342,15 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
                 equipmentType: item.equipmentType,
                 ratePerDay: Number(item.ratePerDay),
                 days: Number(item.days),
-                totalAmount: Number(item.ratePerDay) * Number(item.days)
+                nos: Number(item.nos || 1),
+                totalAmount: itemTotalAmount(item, category),
+                isVendorRented: !!item.isVendorRented,
+                vendorId: item.vendorId ? Number(item.vendorId) : null
               }
             });
           } else if (category === 'LED') {
             const sqftPerDay = Number(item.heightFt) * Number(item.widthFt) * Number(item.nos || 1);
-            const totalAmount = sqftPerDay * Number(item.ratePerSqft) * Number(item.days);
+            const totalAmount = itemTotalAmount(item, category);
             await tx.ledQuotationItem.create({
               data: {
                 quotationId: q.id,
@@ -294,7 +363,9 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
                 sqftPerDay,
                 ratePerSqft: Number(item.ratePerSqft),
                 days: Number(item.days),
-                totalAmount
+                totalAmount,
+                isVendorRented: !!item.isVendorRented,
+                vendorId: item.vendorId ? Number(item.vendorId) : null
               }
             });
           } else if (category === 'SOUND') {
@@ -306,7 +377,10 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
                 equipmentType: item.equipmentType,
                 ratePerDay: Number(item.ratePerDay),
                 days: Number(item.days),
-                totalAmount: Number(item.ratePerDay) * Number(item.days)
+                nos: Number(item.nos || 1),
+                totalAmount: itemTotalAmount(item, category),
+                isVendorRented: !!item.isVendorRented,
+                vendorId: item.vendorId ? Number(item.vendorId) : null
               }
             });
           } else if (category === 'OFFICE') {
@@ -318,7 +392,7 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
                 rate: Number(item.ratePerDay || item.rate || 0),
                 quantity: Number(item.nos || 1),
                 days: Number(item.days || 1),
-                totalAmount: Number(item.ratePerDay || item.rate || 0) * Number(item.nos || 1) * Number(item.days || 1)
+                totalAmount: itemTotalAmount(item, category)
               }
             });
           }
@@ -420,7 +494,10 @@ export const reviseQuotation = async (req: AuthRequest, res: Response) => {
               equipmentType: item.equipmentType,
               ratePerDay: Number(item.ratePerDay),
               days: Number(item.days),
-              totalAmount: Number(item.ratePerDay) * Number(item.days)
+              nos: Number(item.nos || 1),
+              totalAmount: itemTotalAmount(item, category),
+              isVendorRented: !!item.isVendorRented,
+              vendorId: item.vendorId ? Number(item.vendorId) : null
             }
           });
         } else if (category === 'LED') {
@@ -438,7 +515,9 @@ export const reviseQuotation = async (req: AuthRequest, res: Response) => {
               sqftPerDay,
               ratePerSqft: Number(item.ratePerSqft),
               days: Number(item.days),
-              totalAmount
+              totalAmount,
+              isVendorRented: !!item.isVendorRented,
+              vendorId: item.vendorId ? Number(item.vendorId) : null
             }
           });
         } else if (category === 'SOUND') {
@@ -450,7 +529,10 @@ export const reviseQuotation = async (req: AuthRequest, res: Response) => {
               equipmentType: item.equipmentType,
               ratePerDay: Number(item.ratePerDay),
               days: Number(item.days),
-              totalAmount: Number(item.ratePerDay) * Number(item.days)
+              nos: Number(item.nos || 1),
+              totalAmount: itemTotalAmount(item, category),
+              isVendorRented: !!item.isVendorRented,
+              vendorId: item.vendorId ? Number(item.vendorId) : null
             }
           });
         } else if (category === 'OFFICE') {
@@ -483,8 +565,14 @@ export const approveQuotation = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const { signedCopyPath } = req.body;
 
-    const existing = await prisma.quotation.findUnique({ where: { id: Number(id) } });
+    const existing = await prisma.quotation.findUnique({
+      where: { id: Number(id) },
+      include: { invoice: true }
+    });
     if (!existing) return res.status(404).json({ message: 'Quotation not found' });
+    if (isQuotationLocked(existing)) {
+      return res.status(403).json({ message: QUOTATION_LOCKED_MESSAGE });
+    }
     if (existing.status !== 'DRAFT' && existing.status !== 'SENT') {
       return res.status(400).json({ message: 'Only DRAFT or SENT quotations can be approved' });
     }
@@ -504,6 +592,9 @@ export const approveQuotation = async (req: AuthRequest, res: Response) => {
       data: { status: 'CONFIRMED' }
     });
 
+    // Automatically create vendor rentals for outside sourced items
+    await autoCreateVendorRentalsForQuotation(updated.id);
+
     res.json(updated);
   } catch (error) {
     console.error('Error approving quotation:', error);
@@ -516,8 +607,14 @@ export const declineQuotation = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const { reason } = req.body;
 
-    const existing = await prisma.quotation.findUnique({ where: { id: Number(id) } });
+    const existing = await prisma.quotation.findUnique({
+      where: { id: Number(id) },
+      include: { invoice: true }
+    });
     if (!existing) return res.status(404).json({ message: 'Quotation not found' });
+    if (isQuotationLocked(existing)) {
+      return res.status(403).json({ message: QUOTATION_LOCKED_MESSAGE });
+    }
     if (existing.status !== 'DRAFT' && existing.status !== 'SENT' && existing.status !== 'APPROVED') {
       return res.status(400).json({ message: 'Only DRAFT, SENT or APPROVED quotations can be declined' });
     }
@@ -590,14 +687,22 @@ export const uploadSignedCopy = async (req: any, res: Response) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    const quotation = await prisma.quotation.findUnique({ where: { id: Number(id) } });
+    const quotation = await prisma.quotation.findUnique({
+      where: { id: Number(id) },
+      include: { invoice: true }
+    });
     if (!quotation) {
       return res.status(404).json({ message: 'Quotation not found' });
     }
+    if (isQuotationLocked(quotation)) {
+      return res.status(403).json({ message: QUOTATION_LOCKED_MESSAGE });
+    }
+
+    const cloudinaryUrl = await uploadToCloudinary(file.buffer, 'signed-copies', 'auto');
 
     const updated = await prisma.quotation.update({
       where: { id: Number(id) },
-      data: { signedCopyPath: file.path.replace(/\\/g, '/') }
+      data: { signedCopyPath: cloudinaryUrl }
     });
 
     res.json({ message: 'Signed copy uploaded successfully', signedCopyPath: updated.signedCopyPath });
@@ -618,12 +723,19 @@ export const updateQuotationStatus = async (req: AuthRequest, res: Response) => 
       return res.status(400).json({ message: `Invalid status. Allowed: ${allowedStatuses.join(', ')}` });
     }
 
-    const existing = await prisma.quotation.findUnique({ where: { id: Number(id) } });
+    const existing = await prisma.quotation.findUnique({
+      where: { id: Number(id) },
+      include: { invoice: true }
+    });
     if (!existing) return res.status(404).json({ message: 'Quotation not found' });
 
     // If already in that status, just return success (idempotency)
     if (existing.status === status) {
       return res.json(existing);
+    }
+
+    if (isQuotationLocked(existing)) {
+      return res.status(403).json({ message: QUOTATION_LOCKED_MESSAGE });
     }
 
     // Status transition validation
@@ -655,6 +767,8 @@ export const updateQuotationStatus = async (req: AuthRequest, res: Response) => 
         where: { id: updated.inquiryId },
         data: { status: 'CONFIRMED' }
       });
+      // Automatically create vendor rentals for outside sourced items
+      await autoCreateVendorRentalsForQuotation(updated.id);
     } else if (status === 'REJECTED' && existing.status === 'APPROVED') {
       // Check if any other quotation is still approved for this inquiry
       const otherApproved = await prisma.quotation.count({
@@ -679,3 +793,117 @@ export const updateQuotationStatus = async (req: AuthRequest, res: Response) => 
     res.status(500).json({ message: 'Error updating quotation status' });
   }
 };
+
+export async function autoCreateVendorRentalsForQuotation(quotationId: number, tx: any = prisma) {
+  try {
+    const quotation = await tx.quotation.findUnique({
+      where: { id: quotationId },
+      include: {
+        inquiry: true,
+        videoQuotationItems: true,
+        ledQuotationItems: true,
+        soundQuotationItems: true
+      }
+    });
+    if (!quotation || !quotation.inquiry) return;
+
+    const inquiry = quotation.inquiry;
+
+    // Helper to extract clean name
+    const cleanName = (val: string) => val.replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim();
+
+    // Process Video Items
+    for (const item of quotation.videoQuotationItems) {
+      if (item.isVendorRented && item.vendorId) {
+        const name = cleanName(item.equipmentType);
+        // Prevent duplicate rentals
+        const existing = await tx.vendorRental.findFirst({
+          where: {
+            inquiryId: inquiry.id,
+            vendorId: item.vendorId,
+            itemName: name
+          }
+        });
+        if (!existing) {
+          await tx.vendorRental.create({
+            data: {
+              vendorId: item.vendorId,
+              itemName: name,
+              quantity: item.nos,
+              rentedDate: inquiry.startDate,
+              endDate: inquiry.endDate,
+              pricePerDay: Number(item.ratePerDay),
+              totalCost: Number(item.totalAmount),
+              inquiryId: inquiry.id,
+              status: 'RENTED',
+              notes: `Auto-created from Quotation #${quotation.quotationNumber}`
+            }
+          });
+        }
+      }
+    }
+
+    // Process Sound Items
+    for (const item of quotation.soundQuotationItems) {
+      if (item.isVendorRented && item.vendorId) {
+        const name = cleanName(item.equipmentType);
+        const existing = await tx.vendorRental.findFirst({
+          where: {
+            inquiryId: inquiry.id,
+            vendorId: item.vendorId,
+            itemName: name
+          }
+        });
+        if (!existing) {
+          await tx.vendorRental.create({
+            data: {
+              vendorId: item.vendorId,
+              itemName: name,
+              quantity: item.nos,
+              rentedDate: inquiry.startDate,
+              endDate: inquiry.endDate,
+              pricePerDay: Number(item.ratePerDay),
+              totalCost: Number(item.totalAmount),
+              inquiryId: inquiry.id,
+              status: 'RENTED',
+              notes: `Auto-created from Quotation #${quotation.quotationNumber}`
+            }
+          });
+        }
+      }
+    }
+
+    // Process LED Items
+    for (const item of quotation.ledQuotationItems) {
+      if (item.isVendorRented && item.vendorId) {
+        const name = `${cleanName(item.ledType)} (${item.widthFt}x${item.heightFt} ft)`;
+        const existing = await tx.vendorRental.findFirst({
+          where: {
+            inquiryId: inquiry.id,
+            vendorId: item.vendorId,
+            itemName: name
+          }
+        });
+        if (!existing) {
+          const pricePerDay = Number(item.ratePerSqft) * Number(item.widthFt) * Number(item.heightFt);
+          await tx.vendorRental.create({
+            data: {
+              vendorId: item.vendorId,
+              itemName: name,
+              quantity: item.nos,
+              rentedDate: inquiry.startDate,
+              endDate: inquiry.endDate,
+              pricePerDay: pricePerDay,
+              totalCost: Number(item.totalAmount),
+              inquiryId: inquiry.id,
+              status: 'RENTED',
+              notes: `Auto-created from Quotation #${quotation.quotationNumber}`
+            }
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error auto-creating vendor rentals:', error);
+  }
+}

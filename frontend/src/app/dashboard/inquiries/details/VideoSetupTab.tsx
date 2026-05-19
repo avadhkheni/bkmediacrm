@@ -181,7 +181,7 @@ export default function VideoSetupTab({ inquiryId }: VideoSetupTabProps) {
                 bookedGear.map((booking: any) => (
                   <div key={booking.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-700">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-blue-105 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
                         <Video className="w-5 h-5" />
                       </div>
                       <div>
@@ -241,7 +241,7 @@ export default function VideoSetupTab({ inquiryId }: VideoSetupTabProps) {
                 <h3 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">Allocate Video Equipment</h3>
                 <p className="text-xs text-slate-400 font-semibold mt-1 uppercase tracking-wide">{selectedGear.name}</p>
               </div>
-              <button onClick={() => setShowAllocModal(false)} className="text-slate-400 hover:text-slate-650 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors">
+              <button onClick={() => setShowAllocModal(false)} className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>

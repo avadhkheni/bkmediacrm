@@ -119,6 +119,7 @@ export const getInquiryById = async (req: Request, res: Response) => {
       include: {
         client: true,
         quotations: {
+          where: { deletedAt: null },
           include: { 
             invoice: true,
             videoQuotationItems: true,

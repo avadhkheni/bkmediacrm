@@ -8,6 +8,7 @@ import {
   generateDispatchPdf,
   generateExpenseReportPdf,
   generateVendorRentalsPdf,
+  generateIndividualVendorRentalPdf,
 } from '../services/pdf.service';
 
 export const getQuotationPdf = async (req: Request, res: Response) => {
@@ -95,5 +96,17 @@ export const getVendorRentalsPdf = async (req: Request, res: Response) => {
     res.send(pdf);
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Error generating PDF' });
+  }
+};
+
+export const getIndividualVendorRentalPdf = async (req: Request, res: Response) => {
+  try {
+    const { rentalId } = req.params;
+    const pdf = await generateIndividualVendorRentalPdf(Number(rentalId));
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename=vendor-rental-challan-${rentalId}.pdf`);
+    res.send(pdf);
+  } catch (error: any) {
+    res.status(error.message === 'Vendor rental record not found' ? 404 : 500).json({ message: error.message || 'Error generating PDF' });
   }
 };

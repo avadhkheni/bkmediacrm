@@ -1,8 +1,10 @@
 import axios from "axios";
 import { useAuthStore } from "@/store/authStore";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api/v1";
+
 const api = axios.create({
-  baseURL: "http://localhost:5001/api/v1",
+  baseURL: API_URL,
   headers: {
     "Content-Type": "application/json",
   },
@@ -29,7 +31,7 @@ api.interceptors.response.use(
     
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-
+ 
       try {
         const refreshToken = typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null;
         if (!refreshToken) {
@@ -37,7 +39,7 @@ api.interceptors.response.use(
           return Promise.reject(error);
         }
 
-        const response = await axios.post("http://localhost:5001/api/v1/auth/refresh", {
+        const response = await axios.post(`${API_URL}/auth/refresh`, {
           refreshToken,
         });
 

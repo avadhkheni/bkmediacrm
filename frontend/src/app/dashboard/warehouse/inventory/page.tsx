@@ -11,6 +11,9 @@ interface InventoryItem {
   brand: string;
   warehouseName: string;
   totalQuantity: number;
+  availableQuantity: number;
+  inUseQuantity: number;
+  maintenanceQuantity: number;
   status: string;
   type: string;
 }
@@ -48,6 +51,9 @@ export default function InventoryPage() {
               brand: v.brand || 'N/A',
               warehouseName: warehouse.name,
               totalQuantity: v.totalQuantity || 1,
+              availableQuantity: v.availableQuantity !== undefined ? v.availableQuantity : (v.totalQuantity || 1),
+              inUseQuantity: v.inUseQuantity || 0,
+              maintenanceQuantity: v.maintenanceQuantity || 0,
               status: v.status,
               type: 'VIDEO'
             });
@@ -62,6 +68,9 @@ export default function InventoryPage() {
               brand: l.companyName,
               warehouseName: warehouse.name,
               totalQuantity: l.totalCabinets,
+              availableQuantity: l.availableQuantity !== undefined ? l.availableQuantity : l.totalCabinets,
+              inUseQuantity: l.inUseQuantity || 0,
+              maintenanceQuantity: l.maintenanceQuantity || 0,
               status: l.status,
               type: 'LED'
             });
@@ -76,6 +85,9 @@ export default function InventoryPage() {
               brand: s.brand || 'N/A',
               warehouseName: warehouse.name,
               totalQuantity: s.totalQuantity || 1,
+              availableQuantity: s.availableQuantity !== undefined ? s.availableQuantity : (s.totalQuantity || 1),
+              inUseQuantity: s.inUseQuantity || 0,
+              maintenanceQuantity: s.maintenanceQuantity || 0,
               status: s.status,
               type: 'SOUND'
             });
@@ -275,7 +287,7 @@ export default function InventoryPage() {
                 <th className="py-4 px-6 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Equipment Name</th>
                 <th className="py-4 px-6 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Category</th>
                 <th className="py-4 px-6 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Warehouse</th>
-                <th className="py-4 px-6 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center">Qty</th>
+                <th className="py-4 px-6 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center">Qty. Details</th>
                 <th className="py-4 px-6 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center">Status</th>
               </tr>
             </thead>
@@ -311,7 +323,16 @@ export default function InventoryPage() {
                       <p className="text-sm font-semibold text-slate-800 dark:text-white">{item.warehouseName}</p>
                     </td>
                     <td className="py-4 px-6 text-center">
-                      <p className="text-sm font-bold text-slate-800 dark:text-white">{item.totalQuantity}</p>
+                      <div className="flex flex-col items-center">
+                        <span className="text-sm font-bold text-slate-800 dark:text-white">
+                          Total: {item.totalQuantity}
+                        </span>
+                        <div className="flex gap-2 mt-1 text-[10px] font-semibold justify-center">
+                          <span className="text-green-600 dark:text-green-400" title="Available">Av: {item.availableQuantity}</span>
+                          <span className="text-blue-600 dark:text-blue-400" title="In Use">Use: {item.inUseQuantity}</span>
+                          <span className="text-orange-600 dark:text-orange-400" title="Maintenance">Mnt: {item.maintenanceQuantity}</span>
+                        </div>
+                      </div>
                     </td>
                     <td className="py-4 px-6 text-center">
                       <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${

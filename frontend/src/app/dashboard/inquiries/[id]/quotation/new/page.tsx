@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import api from "@/lib/api";
+import SearchableSelect from "@/components/SearchableSelect";
+import { filterVendorsByDepartment } from "@/lib/vendor";
 
 export default function NewQuotationPage() {
   const params = useParams();
@@ -13,11 +15,13 @@ export default function NewQuotationPage() {
   const [inquiry, setInquiry] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [warehouseStock, setWarehouseStock] = useState<any[]>([]);
+  const [ledRates, setLedRates] = useState<any[]>([]);
+  const [vendorsOptions, setVendorsOptions] = useState<any[]>([]);
 
   const { register, control, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm({
     defaultValues: {
       items: [
-        { placeName: '', position: '', equipmentType: '', ratePerDay: 0, days: 1, totalAmount: 0, heightFt: 0, widthFt: 0, nos: 1, ratePerSqft: 0, ledType: '' }
+        { placeName: '', position: '', equipmentType: '', ratePerDay: 0, days: 1, totalAmount: 0, heightFt: 0, widthFt: 0, nos: 1, ratePerSqft: 0, ledType: '', isCustomEquipment: false, isCustomLed: false, isVendorRented: false, vendorId: '' }
       ],
       gstRate: 18,
       notes: ''
@@ -40,16 +44,30 @@ export default function NewQuotationPage() {
 
         // Fetch corresponding warehouse stock levels based on department
         let stockRes;
+        let ratesRes;
         if (data.department === 'LED') {
-          stockRes = await api.get('/led/stock');
+          const [stock, rates] = await Promise.all([
+            api.get('/led/stock'),
+            api.get('/led/type-rates')
+          ]);
+          stockRes = stock;
+          ratesRes = rates;
         } else if (data.department === 'VIDEO') {
           stockRes = await api.get('/video/equipment');
         } else if (data.department === 'SOUND') {
           stockRes = await api.get('/sound/equipment');
         }
+        
         if (stockRes) {
           setWarehouseStock(stockRes.data || []);
         }
+        if (ratesRes) {
+          setLedRates(ratesRes.data || []);
+        }
+
+        // Fetch vendors list
+        const vendorsRes = await api.get('/vendors').catch(() => ({ data: [] }));
+        setVendorsOptions(vendorsRes.data || []);
 
         // Pre-fill days for all items
         setValue("items", [{ 
@@ -63,7 +81,11 @@ export default function NewQuotationPage() {
           widthFt: 12,
           nos: 1,
           ratePerSqft: 0,
-          ledType: ''
+          ledType: '',
+          isCustomEquipment: false,
+          isCustomLed: false,
+          isVendorRented: false,
+          vendorId: ''
         }]);
       } catch (error) {
         console.error("Failed to load inquiry or stock", error);
@@ -96,14 +118,49 @@ export default function NewQuotationPage() {
     return match || null;
   };
 
+  const handleEquipmentChange = (index: number, equipName: string) => {
+    const vId = watchItems[index]?.vendorId;
+    const chosenVendor = vId ? vendorsOptions.find((v: any) => v.id === Number(vId)) : null;
+    const finalEquipName = chosenVendor ? `[VENDOR: ${chosenVendor.name}] ${equipName}` : equipName;
+    
+    setValue(`items.${index}.equipmentType`, finalEquipName);
+    
+    if (!chosenVendor) {
+      const match = warehouseStock.find(s => s.name === equipName);
+      if (match && match.pricingDay) {
+        setValue(`items.${index}.ratePerDay`, Number(match.pricingDay));
+      }
+    }
+  };
+
+  const handleLedTypeChange = (index: number, ledType: string) => {
+    const vId = watchItems[index]?.vendorId;
+    const chosenVendor = vId ? vendorsOptions.find((v: any) => v.id === Number(vId)) : null;
+    const finalLedType = chosenVendor ? `[VENDOR: ${chosenVendor.name}] ${ledType}` : ledType;
+    
+    setValue(`items.${index}.ledType`, finalLedType);
+    
+    if (!chosenVendor) {
+      const matchedRate = ledRates.find(r => r.ledType === ledType);
+      if (matchedRate) {
+        setValue(`items.${index}.ratePerSqft`, Number(matchedRate.ratePerSqftPerDay));
+      } else {
+        const matchedStock = warehouseStock.find(s => s.ledType === ledType);
+        if (matchedStock && matchedStock.pricingSqft) {
+          setValue(`items.${index}.ratePerSqft`, Number(matchedStock.pricingSqft));
+        }
+      }
+    }
+  };
+
   // Calculation logic
   const calculateSubtotal = () => {
     return watchItems.reduce((acc, item: any) => {
       if (inquiry?.department === 'VIDEO' || inquiry?.department === 'SOUND') {
-        return acc + (Number(item.ratePerDay) * Number(item.days));
+        return acc + (Number(item.ratePerDay || 0) * Number(item.days || 1) * Number(item.nos || 1));
       } else {
-        const sqft = Number(item.heightFt) * Number(item.widthFt) * Number(item.nos);
-        return acc + (sqft * Number(item.ratePerSqft) * Number(item.days));
+        const sqft = Number(item.heightFt || 0) * Number(item.widthFt || 0) * Number(item.nos || 1);
+        return acc + (sqft * Number(item.ratePerSqft || 0) * Number(item.days || 1));
       }
     }, 0);
   };
@@ -144,11 +201,11 @@ export default function NewQuotationPage() {
         items: data.items.map((item: any) => {
           const base = { ...item };
           if (inquiry.department === 'VIDEO' || inquiry.department === 'SOUND') {
-            base.totalAmount = Number(item.ratePerDay) * Number(item.days);
+            base.totalAmount = Number(item.ratePerDay || 0) * Number(item.days || 1) * Number(item.nos || 1);
           } else {
-            const sqft = Number(item.heightFt) * Number(item.widthFt) * Number(item.nos);
+            const sqft = Number(item.heightFt || 0) * Number(item.widthFt || 0) * Number(item.nos || 1);
             base.sqftPerDay = sqft;
-            base.totalAmount = sqft * Number(item.ratePerSqft) * Number(item.days);
+            base.totalAmount = sqft * Number(item.ratePerSqft || 0) * Number(item.days || 1);
           }
           return base;
         }),
@@ -181,7 +238,7 @@ export default function NewQuotationPage() {
             <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Quotation Items</h3>
             <button 
               type="button" 
-              onClick={() => append({ placeName: '', position: '', equipmentType: '', ratePerDay: 0, days: 1, totalAmount: 0, heightFt: 0, widthFt: 0, nos: 1, ratePerSqft: 0, ledType: '' })}
+              onClick={() => append({ placeName: '', position: '', equipmentType: '', ratePerDay: 0, days: inquiry?.totalDays || 1, totalAmount: 0, heightFt: 0, widthFt: 0, nos: 1, ratePerSqft: 0, ledType: '', isCustomEquipment: false, isCustomLed: false, isVendorRented: false, vendorId: '' })}
               className="text-sm bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors"
             >
               + Add Row
@@ -200,8 +257,53 @@ export default function NewQuotationPage() {
                   <>
                     <div className="md:col-span-3">
                       <label className="block text-xs text-slate-500 mb-1">Equipment / Service</label>
-                      <input {...register(`items.${index}.equipmentType`, { required: 'Required' })} className={`w-full text-sm p-2 rounded-md border ${errors.items?.[index]?.equipmentType ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-white'} dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white`} placeholder="Sony A7R IV" />
-                      {errors.items?.[index]?.equipmentType && <p className="text-xs text-red-500 mt-1">Required</p>}
+                      {watchItems[index]?.isCustomEquipment || (watchItems[index]?.equipmentType && warehouseStock.length > 0 && !warehouseStock.some((s: any) => s.name === (watchItems[index]?.equipmentType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim())) ? (
+                        <div className="flex gap-1">
+                          <input 
+                            {...register(`items.${index}.equipmentType`, { required: 'Required' })} 
+                            className={`w-full text-sm p-2 rounded-md border ${errors.items?.[index]?.equipmentType ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-white'} dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white`}
+                            placeholder="Sony A7R IV"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setValue(`items.${index}.isCustomEquipment`, false);
+                              setValue(`items.${index}.equipmentType`, '');
+                            }}
+                            className="px-2 py-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded text-xs text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600"
+                            title="Select from list"
+                          >
+                            List
+                          </button>
+                        </div>
+                      ) : (
+                        <SearchableSelect 
+                          options={[
+                            ...warehouseStock.map((eq: any) => ({
+                              id: eq.name,
+                              name: eq.name,
+                              subtext: `${eq.brand || ''} ${eq.model || ''} [Available: ${eq.availableQuantity !== undefined ? eq.availableQuantity : eq.totalQuantity}]`
+                            })),
+                            { id: '__custom', name: '✏️ Custom entry...' }
+                          ]}
+                          value={(watchItems[index]?.equipmentType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim()}
+                          onChange={(val) => {
+                            if (val === '__custom') {
+                              setValue(`items.${index}.isCustomEquipment`, true);
+                              setValue(`items.${index}.equipmentType`, '');
+                            } else {
+                              handleEquipmentChange(index, val.toString());
+                            }
+                          }}
+                          placeholder="Select equipment..."
+                          error={errors.items?.[index]?.equipmentType ? 'Required' : undefined}
+                          compact
+                        />
+                      )}
+                    </div>
+                    <div className="md:col-span-1">
+                      <label className="block text-xs text-slate-500 mb-1">Qty</label>
+                      <input type="number" {...register(`items.${index}.nos`, { required: 'Required', min: { value: 1, message: 'Min 1' }, valueAsNumber: true })} className="w-full text-sm p-2 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white" />
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-xs text-slate-500 mb-1">Rate / Day</label>
@@ -213,8 +315,49 @@ export default function NewQuotationPage() {
                   <>
                     <div className="md:col-span-2">
                       <label className="block text-xs text-slate-500 mb-1">LED Type</label>
-                      <input {...register(`items.${index}.ledType`, { required: 'Required' })} className={`w-full text-sm p-2 rounded-md border ${errors.items?.[index]?.ledType ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-white'} dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white`} placeholder="P2.5" />
-                      {errors.items?.[index]?.ledType && <p className="text-xs text-red-500 mt-1">Required</p>}
+                      {watchItems[index]?.isCustomLed || (watchItems[index]?.ledType && warehouseStock.length > 0 && !warehouseStock.some((s: any) => s.ledType === (watchItems[index]?.ledType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim())) ? (
+                        <div className="flex gap-1">
+                          <input 
+                            {...register(`items.${index}.ledType`, { required: 'Required' })} 
+                            className={`w-full text-sm p-2 rounded-md border ${errors.items?.[index]?.ledType ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-white'} dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white`}
+                            placeholder="P2.5"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setValue(`items.${index}.isCustomLed`, false);
+                              setValue(`items.${index}.ledType`, '');
+                            }}
+                            className="px-2 py-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded text-xs text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600"
+                            title="Select from list"
+                          >
+                            List
+                          </button>
+                        </div>
+                      ) : (
+                        <SearchableSelect 
+                          options={[
+                            ...[...new Set(warehouseStock.map((s: any) => s.ledType))].filter(Boolean).map((type: any) => ({
+                              id: type,
+                              name: type,
+                              subtext: warehouseStock.filter((s: any) => s.ledType === type).map((s: any) => `${s.companyName || ''}`).join(', ')
+                            })),
+                            { id: '__custom', name: '✏️ Custom entry...' }
+                          ]}
+                          value={(watchItems[index]?.ledType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim()}
+                          onChange={(val) => {
+                            if (val === '__custom') {
+                              setValue(`items.${index}.isCustomLed`, true);
+                              setValue(`items.${index}.ledType`, '');
+                            } else {
+                              handleLedTypeChange(index, val.toString());
+                            }
+                          }}
+                          placeholder="Select LED type..."
+                          error={errors.items?.[index]?.ledType ? 'Required' : undefined}
+                          compact
+                        />
+                      )}
                     </div>
                     <div className="md:col-span-1">
                       <label className="block text-xs text-slate-500 mb-1">W (ft)</label>
@@ -244,7 +387,7 @@ export default function NewQuotationPage() {
                   <p className="text-xs text-slate-400">Total</p>
                   <p className="text-sm font-bold dark:text-white">
                     ₹{inquiry.department === 'VIDEO' || inquiry.department === 'SOUND'
-                      ? (Number(watchItems[index]?.ratePerDay || 0) * Number(watchItems[index]?.days || 1)).toLocaleString()
+                      ? (Number(watchItems[index]?.ratePerDay || 0) * Number(watchItems[index]?.days || 1) * Number(watchItems[index]?.nos || 1)).toLocaleString()
                       : (Number(watchItems[index]?.widthFt || 0) * Number(watchItems[index]?.heightFt || 0) * Number(watchItems[index]?.nos || 1) * Number(watchItems[index]?.ratePerSqft || 0) * Number(watchItems[index]?.days || 1)).toLocaleString()
                     }
                   </p>
@@ -299,6 +442,109 @@ export default function NewQuotationPage() {
                     );
                   }
                 })()}
+
+                {/* Vendor Sourcing selection panel */}
+                {(inquiry.department === 'VIDEO' || inquiry.department === 'SOUND' || inquiry.department === 'LED') && (
+                  <div className="col-span-full mt-2 bg-blue-50/20 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-750 flex flex-wrap gap-4 items-center w-full">
+                    <label className="flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        {...register(`items.${index}.isVendorRented`, {
+                          onChange: (e) => {
+                            const checked = e.target.checked;
+                            if (!checked) {
+                              setValue(`items.${index}.vendorId`, '');
+                              if (inquiry.department === 'LED') {
+                                const currentVal = (watchItems[index]?.ledType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim();
+                                setValue(`items.${index}.ledType`, currentVal);
+                              } else {
+                                const currentVal = (watchItems[index]?.equipmentType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim();
+                                setValue(`items.${index}.equipmentType`, currentVal);
+                              }
+                            }
+                          }
+                        })}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      Rent from Outside Supplier?
+                    </label>
+
+                    {watchItems[index]?.isVendorRented && (
+                      <p className="w-full text-[11px] text-blue-700 dark:text-blue-300">
+                        Outside vendor supply — not limited by in-house warehouse quantity.
+                      </p>
+                    )}
+
+                    {watchItems[index]?.isVendorRented && (
+                      <div className="flex gap-4 items-center flex-1 min-w-[280px]">
+                        <div className="flex-1">
+                          <select
+                            {...register(`items.${index}.vendorId`)}
+                            onChange={(e) => {
+                              const vId = e.target.value;
+                              setValue(`items.${index}.vendorId`, vId);
+                              const chosenVendor = vendorsOptions.find((v: any) => v.id === Number(vId));
+                              if (chosenVendor) {
+                                if (inquiry.department === 'LED') {
+                                  const currentVal = (watchItems[index]?.ledType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim();
+                                  setValue(`items.${index}.ledType`, `[VENDOR: ${chosenVendor.name}] ${currentVal}`);
+                                } else {
+                                  const currentVal = (watchItems[index]?.equipmentType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim();
+                                  setValue(`items.${index}.equipmentType`, `[VENDOR: ${chosenVendor.name}] ${currentVal}`);
+                                }
+                              } else {
+                                if (inquiry.department === 'LED') {
+                                  const currentVal = (watchItems[index]?.ledType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim();
+                                  setValue(`items.${index}.ledType`, currentVal);
+                                } else {
+                                  const currentVal = (watchItems[index]?.equipmentType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim();
+                                  setValue(`items.${index}.equipmentType`, currentVal);
+                                }
+                              }
+                            }}
+                            className="w-full text-xs p-1.5 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white font-medium"
+                          >
+                            <option value="">-- Select Registered Supplier --</option>
+                            {filterVendorsByDepartment(vendorsOptions, inquiry.department).map((v: any) => (
+                              <option key={v.id} value={v.id}>{v.name} ({v.specialization || 'Supplier'})</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {watchItems[index]?.vendorId && (
+                          <div className="flex-1">
+                            <select
+                              onChange={(e) => {
+                                const prodId = e.target.value;
+                                if (!prodId) return;
+                                const chosenVendor = vendorsOptions.find((v: any) => v.id === Number(watchItems[index]?.vendorId));
+                                const prod = chosenVendor?.products?.find((p: any) => p.id === Number(prodId));
+                                if (prod) {
+                                  if (inquiry.department === 'LED') {
+                                    setValue(`items.${index}.ledType`, `[VENDOR: ${chosenVendor.name}] ${prod.name}`);
+                                    setValue(`items.${index}.ratePerSqft`, Number(prod.ratePerDay));
+                                  } else {
+                                    setValue(`items.${index}.equipmentType`, `[VENDOR: ${chosenVendor.name}] ${prod.name}`);
+                                    setValue(`items.${index}.ratePerDay`, Number(prod.ratePerDay));
+                                  }
+                                }
+                              }}
+                              className="w-full text-xs p-1.5 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white font-medium"
+                            >
+                              <option value="">-- Choose Supplier Rental Item --</option>
+                              {(vendorsOptions.find((v: any) => v.id === Number(watchItems[index]?.vendorId))?.products || [])
+                                .filter((p: any) => p.category === inquiry.department)
+                                .map((p: any) => (
+                                  <option key={p.id} value={p.id}>{p.name} (₹{p.ratePerDay}/day)</option>
+                                ))
+                              }
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <button 
                   type="button" 

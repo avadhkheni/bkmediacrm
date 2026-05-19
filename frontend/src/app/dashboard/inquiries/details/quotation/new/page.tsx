@@ -5,6 +5,9 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import api from "@/lib/api";
 import SearchableSelect from "@/components/SearchableSelect";
+import QuotationSourcingSummary from "@/components/QuotationSourcingSummary";
+import QuotationLineSourceBadge from "@/components/QuotationLineSourceBadge";
+import { filterVendorsByDepartment } from "@/lib/vendor";
 
 const LED_SIZE_PRESETS = [
   { id: '12x10', name: '12 × 10 ft (Main Backdrop)', w: 12, h: 10 },
@@ -95,7 +98,10 @@ function NewQuotationContent() {
 
   // Auto-fill rate when LED type is selected
   const handleLedTypeChange = (index: number, ledType: string) => {
-    setValue(`items.${index}.ledType`, ledType);
+    const vId = watchItems[index]?.vendorId;
+    const chosenVendor = vId ? vendorsOptions.find((v: any) => v.id === Number(vId)) : null;
+    const finalLedType = chosenVendor ? `[VENDOR: ${chosenVendor.name}] ${ledType}` : ledType;
+    setValue(`items.${index}.ledType`, finalLedType);
     const rate = ledRates.find((r: any) => r.ledType === ledType);
     if (rate) {
       setValue(`items.${index}.ratePerSqft`, rate.ratePerSqftPerDay);
@@ -121,7 +127,10 @@ function NewQuotationContent() {
 
   // Auto-fill rate when video equipment is selected
   const handleVideoEquipChange = (index: number, equipName: string) => {
-    setValue(`items.${index}.equipmentType`, equipName);
+    const vId = watchItems[index]?.vendorId;
+    const chosenVendor = vId ? vendorsOptions.find((v: any) => v.id === Number(vId)) : null;
+    const finalEquipName = chosenVendor ? `[VENDOR: ${chosenVendor.name}] ${equipName}` : equipName;
+    setValue(`items.${index}.equipmentType`, finalEquipName);
   };
 
   // Calculation logic
@@ -225,12 +234,27 @@ function NewQuotationContent() {
             </button>
           </div>
 
-          <div className="space-y-3">
+          <QuotationSourcingSummary items={watchItems} />
+
+          <div className="space-y-4">
             {fields.map((field, index) => {
               const currentCategory = watchItems[index]?.category || inquiry.department;
+              const rowItem = watchItems[index] || {};
+              const fromVendor = !!rowItem.isVendorRented;
               
               return (
-                <div key={field.id} className="grid grid-cols-1 md:grid-cols-[repeat(14,minmax(0,1fr))] gap-2 p-2.5 border border-slate-100 dark:border-slate-700 rounded-xl relative group items-end bg-slate-50/20 dark:bg-slate-800/10">
+                <div
+                  key={field.id}
+                  className={`grid grid-cols-1 md:grid-cols-[repeat(14,minmax(0,1fr))] gap-2 p-2.5 border rounded-xl relative group items-end bg-slate-50/20 dark:bg-slate-800/10 border-l-4 ${
+                    fromVendor
+                      ? "border-l-blue-500 border-slate-100 dark:border-slate-700"
+                      : "border-l-emerald-500 border-slate-100 dark:border-slate-700"
+                  }`}
+                >
+                  <div className="col-span-full flex items-center justify-between gap-2 pb-1">
+                    <QuotationLineSourceBadge item={rowItem} />
+                    <span className="text-[10px] text-slate-400 font-medium">Line {index + 1}</span>
+                  </div>
                   <div className="md:col-span-2">
                     <label className="block text-[11px] text-slate-500 mb-1">Category</label>
                     <select 
@@ -262,7 +286,7 @@ function NewQuotationContent() {
                             })),
                             { id: '__custom', name: '✏️ Custom entry...' }
                           ]}
-                          value={watchItems[index]?.equipmentType}
+                          value={(watchItems[index]?.equipmentType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim()}
                           onChange={(val) => handleVideoEquipChange(index, val.toString())}
                           placeholder="Select equipment..."
                           error={errors.items?.[index]?.equipmentType ? 'Required' : undefined}
@@ -292,7 +316,7 @@ function NewQuotationContent() {
                             name: type,
                             subtext: ledStockOptions.filter((s: any) => s.ledType === type).map((s: any) => `${s.companyName} (₹${s.pricingSqft}/sqft)`).join(', ')
                           }))}
-                          value={watchItems[index]?.ledType || ''}
+                          value={(watchItems[index]?.ledType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim()}
                           onChange={(val) => handleLedTypeChange(index, val.toString())}
                           placeholder="Select LED type..."
                           error={errors.items?.[index]?.ledType ? 'Required' : undefined}
@@ -378,11 +402,25 @@ function NewQuotationContent() {
 
                   {/* Vendor Sourcing selection panel */}
                   {(currentCategory === 'VIDEO' || currentCategory === 'SOUND' || currentCategory === 'LED') && (
-                    <div className="col-span-1 md:col-span-14 mt-2 bg-blue-50/20 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-750 flex flex-wrap gap-4 items-center w-full">
-                      <label className="flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400 cursor-pointer">
+                    <div className="col-span-full mt-2 bg-blue-50/20 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-750 flex flex-wrap gap-4 items-center w-full">
+                      <label className="flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400 cursor-pointer whitespace-nowrap">
                         <input 
                           type="checkbox" 
-                          {...register(`items.${index}.isVendorRented`)}
+                          {...register(`items.${index}.isVendorRented`, {
+                            onChange: (e) => {
+                              const checked = e.target.checked;
+                              if (!checked) {
+                                setValue(`items.${index}.vendorId`, '');
+                                if (currentCategory === 'LED') {
+                                  const currentVal = (watchItems[index]?.ledType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim();
+                                  setValue(`items.${index}.ledType`, currentVal);
+                                } else {
+                                  const currentVal = (watchItems[index]?.equipmentType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim();
+                                  setValue(`items.${index}.equipmentType`, currentVal);
+                                }
+                              }
+                            }
+                          })}
                           className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                         />
                         Rent from Outside Supplier?
@@ -396,18 +434,29 @@ function NewQuotationContent() {
                               onChange={(e) => {
                                 const vId = e.target.value;
                                 setValue(`items.${index}.vendorId`, vId);
-                                if (currentCategory === 'LED') {
-                                  setValue(`items.${index}.ledType`, '');
-                                  setValue(`items.${index}.ratePerSqft`, 0);
+                                const chosenVendor = vendorsOptions.find((v: any) => v.id === Number(vId));
+                                if (chosenVendor) {
+                                  if (currentCategory === 'LED') {
+                                    const currentVal = (watchItems[index]?.ledType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim();
+                                    setValue(`items.${index}.ledType`, `[VENDOR: ${chosenVendor.name}] ${currentVal}`);
+                                  } else {
+                                    const currentVal = (watchItems[index]?.equipmentType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim();
+                                    setValue(`items.${index}.equipmentType`, `[VENDOR: ${chosenVendor.name}] ${currentVal}`);
+                                  }
                                 } else {
-                                  setValue(`items.${index}.equipmentType`, '');
-                                  setValue(`items.${index}.ratePerDay`, 0);
+                                  if (currentCategory === 'LED') {
+                                    const currentVal = (watchItems[index]?.ledType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim();
+                                    setValue(`items.${index}.ledType`, currentVal);
+                                  } else {
+                                    const currentVal = (watchItems[index]?.equipmentType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim();
+                                    setValue(`items.${index}.equipmentType`, currentVal);
+                                  }
                                 }
                               }}
                               className="w-full text-xs p-1.5 rounded-md border border-slate-200 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-white font-medium"
                             >
                               <option value="">-- Select Registered Supplier --</option>
-                              {vendorsOptions.filter((v: any) => v.department === currentCategory).map((v: any) => (
+                              {filterVendorsByDepartment(vendorsOptions, currentCategory).map((v: any) => (
                                 <option key={v.id} value={v.id}>{v.name} ({v.specialization || 'Supplier'})</option>
                               ))}
                             </select>
@@ -437,7 +486,9 @@ function NewQuotationContent() {
                                 {(vendorsOptions.find((v: any) => v.id === Number(watchItems[index]?.vendorId))?.products || [])
                                   .filter((p: any) => p.category === currentCategory)
                                   .map((p: any) => (
-                                    <option key={p.id} value={p.id}>{p.name} (₹{p.ratePerDay}/day)</option>
+                                    <option key={p.id} value={p.id}>
+                                      {p.name} (Qty: {p.quantity || 1}, ₹{p.ratePerDay}/day)
+                                    </option>
                                   ))
                                 }
                               </select>

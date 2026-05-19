@@ -2,7 +2,9 @@
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Camera, Download } from 'lucide-react';
+import { Camera, Download, FileDown } from 'lucide-react';
+import { exportToCSV } from "@/lib/exportUtils";
+import { generateVideoReportPDF } from "@/lib/pdfGenerator";
 
 const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6'];
 
@@ -14,12 +16,20 @@ export default function VideoReport() {
     api.get('/analytics/video').then(r => setData(r.data)).catch(console.error).finally(() => setLoading(false));
   }, []);
 
-  const handleExport = () => {
+  const handleExportCSV = () => {
     if (!data) return;
-    const rows = [['Metric','Value'],['Total Equipment',data.totalEquipment],['Active Bookings',data.activeBookings]];
-    data.byCategory?.forEach((c:any)=>rows.push(['Category: '+c.name,c.value]));
-    const csv = "data:text/csv;charset=utf-8," + rows.map(r=>r.join(",")).join("\n");
-    const link = document.createElement("a"); link.href = encodeURI(csv); link.download = `Video_Report_${new Date().toISOString().split('T')[0]}.csv`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    const headers = ['Metric', 'Value'];
+    const rows = [
+      ['Total Equipment', data.totalEquipment],
+      ['Active Bookings', data.activeBookings]
+    ];
+    data.byCategory?.forEach((c:any)=>rows.push(['Category: '+c.name, c.value]));
+    exportToCSV(headers, rows, `Video_Report_${new Date().toISOString().split('T')[0]}.csv`);
+  };
+
+  const handleExportPDF = () => {
+    if (!data) return;
+    generateVideoReportPDF(data);
   };
 
   if (loading) return <div className="py-12 text-center text-slate-500">Loading video analytics...</div>;
@@ -32,9 +42,12 @@ export default function VideoReport() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <button onClick={handleExport} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-all flex items-center gap-2">
+      <div className="flex justify-end gap-3">
+        <button onClick={handleExportCSV} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-all flex items-center gap-2">
           <Download className="w-4 h-4" /> Export CSV
+        </button>
+        <button onClick={handleExportPDF} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-200 dark:shadow-none">
+          <FileDown className="w-4 h-4" /> Export PDF
         </button>
       </div>
       <div className="grid grid-cols-2 gap-4">

@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/lib/api";
+import { generateClientProfilePDF } from "@/lib/pdfGenerator";
 import { 
   ArrowLeft, 
   User, 
@@ -66,7 +67,7 @@ function ClientDetailsContent() {
         
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => window.print()}
+            onClick={() => generateClientProfilePDF(client)}
             className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm"
           >
             <Download className="w-4 h-4" /> Download Profile

@@ -3,10 +3,35 @@ import { prisma } from '../utils/prisma';
 
 export const getLedStock = async (req: Request, res: Response) => {
   try {
-    const stock = await prisma.ledStock.findMany({
-      where: { deletedAt: null }
+    const { status } = req.query;
+    const where: any = { deletedAt: null };
+
+    if (status === 'AVAILABLE') {
+      where.OR = [
+        { status: 'AVAILABLE' },
+        { availableQuantity: { gt: 0 } }
+      ];
+    } else if (status === 'IN_USE') {
+      where.OR = [
+        { status: 'IN_USE' },
+        { inUseQuantity: { gt: 0 } }
+      ];
+    } else if (status) {
+      where.status = status;
+    }
+
+    const stock = await prisma.ledStock.findMany({ where });
+    
+    const mapped = stock.map(e => {
+      let computedStatus = e.status;
+      if (e.availableQuantity > 0) computedStatus = 'AVAILABLE';
+      else if (e.inUseQuantity > 0) computedStatus = 'IN_USE';
+      else if (e.maintenanceQuantity > 0) computedStatus = 'MAINTENANCE';
+      
+      return { ...e, status: computedStatus };
     });
-    res.json(stock);
+
+    res.json(mapped);
   } catch (error) {
     console.error('Error fetching LED stock:', error);
     res.status(500).json({ message: 'Error fetching stock' });
@@ -285,5 +310,69 @@ export const updateLedTypeRate = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error updating LED type rate:', error);
     res.status(500).json({ message: 'Error updating LED type rate' });
+  }
+};
+
+export const getLedQuotationSqftSummary = async (req: Request, res: Response) => {
+  try {
+    const { quotationId } = req.query;
+    if (!quotationId) {
+      res.status(400).json({ message: 'Quotation ID is required' });
+      return;
+    }
+    const items = await prisma.ledQuotationItem.findMany({
+      where: { quotationId: Number(quotationId) }
+    });
+
+    let perDaySqft = 0;
+    let totalEventSqft = 0;
+    const byPlaceMap: { [key: string]: number } = {};
+    const byTypeMap: { [key: string]: number } = {};
+
+    items.forEach(item => {
+      const itemSqftPerDay = Number(item.sqftPerDay || (Number(item.heightFt) * Number(item.widthFt) * Number(item.nos)));
+      const itemTotalSqft = itemSqftPerDay * Number(item.days);
+      
+      perDaySqft += itemSqftPerDay;
+      totalEventSqft += itemTotalSqft;
+
+      byPlaceMap[item.placeName] = (byPlaceMap[item.placeName] || 0) + itemSqftPerDay;
+      byTypeMap[item.ledType] = (byTypeMap[item.ledType] || 0) + itemSqftPerDay;
+    });
+
+    const totalDays = items.length > 0 ? Math.max(...items.map(item => item.days)) : 0;
+
+    res.json({
+      perDaySqft,
+      totalDays,
+      totalEventSqft,
+      byPlace: Object.entries(byPlaceMap).map(([placeName, sqft]) => ({ placeName, sqft })),
+      byType: Object.entries(byTypeMap).map(([ledType, sqft]) => ({ ledType, sqft }))
+    });
+  } catch (error) {
+    console.error('Error calculating LED sqft summary:', error);
+    res.status(500).json({ message: 'Error calculating LED sqft summary' });
+  }
+};
+
+import { calculateClearSize } from '../services/ledClearSize.service';
+
+export const calculateClearSizeController = async (req: Request, res: Response) => {
+  try {
+    const { cabinetHeightMm, cabinetWidthMm, targetHeightFt, targetWidthFt } = req.body;
+    if (!cabinetHeightMm || !cabinetWidthMm || !targetHeightFt || !targetWidthFt) {
+      res.status(400).json({ message: 'All parameters (cabinetHeightMm, cabinetWidthMm, targetHeightFt, targetWidthFt) are required' });
+      return;
+    }
+    const result = calculateClearSize(
+      Number(cabinetHeightMm),
+      Number(cabinetWidthMm),
+      Number(targetHeightFt),
+      Number(targetWidthFt)
+    );
+    res.json(result);
+  } catch (error) {
+    console.error('Error calculating LED clear size:', error);
+    res.status(500).json({ message: 'Error calculating LED clear size' });
   }
 };

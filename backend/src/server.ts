@@ -8,7 +8,7 @@ import { startSoftDeleteCleanupJob } from './services/cleanup.service';
 
 dotenv.config();
 
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5001; // Port for the API server
 
 const server = http.createServer(app);
 const io = new Server(server, {

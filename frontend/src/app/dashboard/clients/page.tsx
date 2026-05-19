@@ -157,7 +157,7 @@ export default function ClientsPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">GST Number</label>
-              <input type="text" placeholder="22AAAAA0000A1Z5" value={form.gstNumber} onChange={e => setForm({ ...form, gstNumber: e.target.value })} className="w-full px-4 py-2 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white" />
+              <input type="text" placeholder="22AAAAA0000A1Z5" value={form.gstNumber} onChange={e => setForm({ ...form, gstNumber: e.target.value.toUpperCase() })} className="w-full px-4 py-2 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white" />
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Address</label>

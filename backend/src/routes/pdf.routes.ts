@@ -8,6 +8,7 @@ import {
   getDispatchPdf,
   getExpenseReportPdf,
   getVendorRentalsPdf,
+  getIndividualVendorRentalPdf,
 } from '../controllers/pdf.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/role.middleware';
@@ -24,5 +25,6 @@ router.get('/requirements/led-clear-size/:inquiryId', authorize(['ADMIN', 'OPERA
 router.get('/dispatch/:inquiryId', authorize(['ADMIN', 'OPERATIONAL']), getDispatchPdf);
 router.get('/expense-report/:inquiryId', authorize(['ADMIN']), getExpenseReportPdf);
 router.get('/vendor-rentals', authorize(['ADMIN', 'OPERATIONAL', 'ACCOUNTS', 'FINANCE', 'VIDEO_DEPT', 'LED_DEPT']), getVendorRentalsPdf);
+router.get('/vendor-rentals/:rentalId', authorize(['ADMIN', 'OPERATIONAL', 'ACCOUNTS', 'FINANCE', 'VIDEO_DEPT', 'LED_DEPT']), getIndividualVendorRentalPdf);
 
 export default router;

@@ -234,7 +234,7 @@ export default function Sidebar() {
         <button
           onClick={logout}
           title="Logout"
-          className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm font-bold text-red-650 dark:text-red-400 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-xl transition-all border border-red-100 dark:border-red-900/20 ${isCollapsed ? "justify-center" : ""}`}
+          className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-xl transition-all border border-red-100 dark:border-red-900/20 ${isCollapsed ? "justify-center" : ""}`}
         >
           <LogOut className="w-4 h-4" strokeWidth={2.5} />
           {!isCollapsed && <span>Logout</span>}

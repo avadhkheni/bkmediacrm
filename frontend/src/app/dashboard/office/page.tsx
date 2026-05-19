@@ -9,18 +9,16 @@ import {
   Share2, 
   Plus, 
   Search, 
-  Filter, 
   Calendar,
   Clock,
   CheckCircle2,
-  AlertCircle,
-  MoreVertical,
   Trash2,
   Pencil,
   ExternalLink,
   ChevronRight,
   HardDrive,
-  Users
+  MessageSquare,
+  Link2
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -49,6 +47,8 @@ interface OfficeTask {
   editingStarted: boolean;
   reviewDone: boolean;
   readyForDelivery: boolean;
+  previewUrl: string | null;
+  comments: string | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -80,7 +80,10 @@ export default function OfficeDashboard() {
     priority: "MEDIUM",
     deadline: "",
     assignedStaffId: "",
-    inquiryId: ""
+    inquiryId: "",
+    previewUrl: "",
+    comments: "",
+    notes: ""
   });
 
   const [staffList, setStaffList] = useState<any[]>([]);
@@ -167,7 +170,10 @@ export default function OfficeDashboard() {
       priority: "MEDIUM",
       deadline: "",
       assignedStaffId: "",
-      inquiryId: ""
+      inquiryId: "",
+      previewUrl: "",
+      comments: "",
+      notes: ""
     });
   };
 
@@ -180,7 +186,10 @@ export default function OfficeDashboard() {
       priority: task.priority,
       deadline: task.deadline ? task.deadline.split("T")[0] : "",
       assignedStaffId: task.assignedStaffId?.toString() || "",
-      inquiryId: task.inquiryId?.toString() || ""
+      inquiryId: task.inquiryId?.toString() || "",
+      previewUrl: task.previewUrl || "",
+      comments: task.comments || "",
+      notes: task.notes || ""
     });
     setShowModal(true);
   };
@@ -212,7 +221,7 @@ export default function OfficeDashboard() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Office Department</h2>
-          <p className="text-slate-500 dark:text-slate-400 text-sm">Post-production & Creative Workflow Management</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm">Post-production, Creative Workflow & Client Proofing</p>
         </div>
         {activeTab === 'tasks' && (
           <button 
@@ -224,7 +233,7 @@ export default function OfficeDashboard() {
         )}
       </div>
 
-      {/* Elegant Premium Tabs Navigation */}
+      {/* Premium Tabs Navigation */}
       <div className="flex border-b border-slate-200 dark:border-slate-700 mb-6 bg-white dark:bg-slate-800/50 rounded-t-xl overflow-hidden shadow-sm">
         <button 
           onClick={() => setActiveTab('tasks')}
@@ -234,9 +243,8 @@ export default function OfficeDashboard() {
               : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
           }`}
         >
-          Office Tasks
+          Office Tasks & Proofing
         </button>
-        
       </div>
 
       {activeTab === 'tasks' ? (
@@ -259,21 +267,21 @@ export default function OfficeDashboard() {
                 onChange={(e) => setSubDeptFilter(e.target.value)}
                 className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl py-2 px-3 text-sm font-medium outline-none"
               >
-                <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-850 dark:text-white">All Departments</option>
-                <option value="VIDEO_EDITING" className="bg-white dark:bg-slate-800 text-slate-850 dark:text-white">Video Editing</option>
-                <option value="GRAPHIC_DESIGN" className="bg-white dark:bg-slate-800 text-slate-850 dark:text-white">Graphic Design</option>
-                <option value="SOCIAL_MEDIA" className="bg-white dark:bg-slate-800 text-slate-850 dark:text-white">Social Media</option>
+                <option value="ALL">All Departments</option>
+                <option value="VIDEO_EDITING">Video Editing</option>
+                <option value="GRAPHIC_DESIGN">Graphic Design</option>
+                <option value="SOCIAL_MEDIA">Social Media</option>
               </select>
               <select 
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl py-2 px-3 text-sm font-medium outline-none"
               >
-                <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-850 dark:text-white">All Status</option>
-                <option value="NOT_STARTED" className="bg-white dark:bg-slate-800 text-slate-850 dark:text-white">Not Started</option>
-                <option value="IN_PROGRESS" className="bg-white dark:bg-slate-800 text-slate-850 dark:text-white">In Progress</option>
-                <option value="REVIEW" className="bg-white dark:bg-slate-800 text-slate-850 dark:text-white">Under Review</option>
-                <option value="COMPLETED" className="bg-white dark:bg-slate-800 text-slate-850 dark:text-white">Completed</option>
+                <option value="ALL">All Status</option>
+                <option value="NOT_STARTED">Not Started</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="REVIEW">Under Review</option>
+                <option value="COMPLETED">Completed</option>
               </select>
             </div>
           </div>
@@ -286,7 +294,7 @@ export default function OfficeDashboard() {
                   <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
                     <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Task Details</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Assigned To</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Deadline</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Proofing Link</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Delivery Workflow</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Status</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
@@ -327,7 +335,7 @@ export default function OfficeDashboard() {
                               <span className="text-[10px] bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-500 dark:text-slate-400">
                                 {task.inquiry?.inquiryNumber || "GLOBAL"}
                               </span>
-                              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                              <span className="text-[11px] text-slate-550 dark:text-slate-405 font-medium">
                                 {task.inquiry?.eventName || "In-house Work"}
                               </span>
                             </div>
@@ -339,21 +347,38 @@ export default function OfficeDashboard() {
                           <div className="w-7 h-7 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center text-[10px] font-bold">
                             {task.assignedStaff?.name.charAt(0) || "U"}
                           </div>
-                          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                            {task.assignedStaff?.name || "Unassigned"}
-                          </span>
+                          <div>
+                            <span className="text-sm font-bold text-slate-700 dark:text-slate-300 block">
+                              {task.assignedStaff?.name || "Unassigned"}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block">
+                              {task.deadline ? format(new Date(task.deadline), "MMM dd, yyyy") : "No Deadline"}
+                            </span>
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <span className={`text-xs font-bold ${getPriorityColor(task.priority)}`}>
-                            {task.priority}
-                          </span>
-                          <span className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {task.deadline ? format(new Date(task.deadline), "MMM dd, yyyy") : "No Deadline"}
-                          </span>
-                        </div>
+                        {task.previewUrl ? (
+                          <div className="flex flex-col gap-1">
+                            <a 
+                              href={task.previewUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                            >
+                              <Link2 className="w-3.5 h-3.5" />
+                              View Export
+                            </a>
+                            {task.comments && (
+                              <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-semibold" title={task.comments}>
+                                <MessageSquare className="w-3 h-3" />
+                                Proof Comments
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400 font-medium">No Link Added</span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
@@ -428,7 +453,7 @@ export default function OfficeDashboard() {
             <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
               <div>
                 <h3 className="text-xl font-bold text-slate-800 dark:text-white">{editingTask ? "Edit Office Task" : "Create Office Task"}</h3>
-                <p className="text-sm text-slate-500">Define work requirements and assignments</p>
+                <p className="text-sm text-slate-500">Define work requirements and client proofing URL</p>
               </div>
               <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-all">
                 <Clock className="w-5 h-5 text-slate-400" />
@@ -505,13 +530,61 @@ export default function OfficeDashboard() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Deadline</label>
+                  <input 
+                    type="date" 
+                    value={formData.deadline}
+                    onChange={(e) => setFormData({...formData, deadline: e.target.value})}
+                    className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Task Status</label>
+                  <select 
+                    value={formData.notes || "NOT_STARTED"}
+                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                    className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none"
+                  >
+                    <option value="NOT_STARTED">Not Started</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="REVIEW">Under Review</option>
+                    <option value="COMPLETED">Completed</option>
+                  </select>
+                </div>
+              </div>
+
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Deadline</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Proofing / Export Preview Link</label>
                 <input 
-                  type="date" 
-                  value={formData.deadline}
-                  onChange={(e) => setFormData({...formData, deadline: e.target.value})}
+                  type="url" 
+                  value={formData.previewUrl}
+                  onChange={(e) => setFormData({...formData, previewUrl: e.target.value})}
+                  className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  placeholder="e.g. https://vimeo.com/frame-approval-link"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Proof / Revision Comments</label>
+                <textarea 
+                  value={formData.comments}
+                  onChange={(e) => setFormData({...formData, comments: e.target.value})}
+                  className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  placeholder="e.g. Client requested color grading tweaks on first 10 seconds."
+                  rows={2}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Description / Internal Notes</label>
+                <textarea 
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
                   className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none"
+                  placeholder="Provide general workflow context..."
+                  rows={2}
                 />
               </div>
 

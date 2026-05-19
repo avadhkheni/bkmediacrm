@@ -13,9 +13,12 @@ import {
   Percent,
   CalendarDays,
   Zap,
-  Download
+  Download,
+  FileDown
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { exportToCSV } from "@/lib/exportUtils";
+import { generateProfitabilityReportPDF } from "@/lib/pdfGenerator";
 
 export default function ProfitabilityReport() {
   const [data, setData] = useState<any>(null);
@@ -39,6 +42,27 @@ export default function ProfitabilityReport() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExportCSV = () => {
+    if (!data) return;
+    const headers = ['Category/Month', 'Revenue', 'Expense', 'Profit', 'Profit Margin'];
+    const rows = [
+      ['Total Summary', data.summary.totalRevenue, data.summary.totalExpense, data.summary.totalProfit, `${data.summary.avgMargin.toFixed(1)}%`],
+      ...data.monthly.map((m: any) => [
+        m.month,
+        m.revenue,
+        m.expense,
+        m.profit,
+        `${m.margin.toFixed(1)}%`
+      ])
+    ];
+    exportToCSV(headers, rows, `Profitability_Report_${new Date().toISOString().split('T')[0]}.csv`);
+  };
+
+  const handleExportPDF = () => {
+    if (!data) return;
+    generateProfitabilityReportPDF(data, filters);
   };
 
   if (loading || !data) return <div className="p-12 text-center text-slate-500">Calculating Profitability...</div>;
@@ -68,9 +92,14 @@ export default function ProfitabilityReport() {
             />
           </div>
         </div>
-        <button className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-slate-200 transition-all">
-          <Download className="w-4 h-4" /> Export Financials
-        </button>
+        <div className="flex gap-3">
+          <button onClick={handleExportCSV} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-all">
+            <Download className="w-4 h-4" /> Export CSV
+          </button>
+          <button onClick={handleExportPDF} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 dark:shadow-none">
+            <FileDown className="w-4 h-4" /> Export PDF
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}

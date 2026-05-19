@@ -16,7 +16,7 @@ export async function generateQuotationNumber(date: Date = new Date()): Promise<
   const fyEnd = new Date(fyStart.getFullYear() + 1, 3, 1);
   
   const count = await prisma.quotation.count({
-    where: { createdAt: { gte: fyStart, lt: fyEnd } }
+    where: { createdAt: { gte: fyStart, lt: fyEnd }, deletedAt: null }
   });
   
   return `BKM/${fy}/${month}/${String(count + 1).padStart(3, '0')}`;

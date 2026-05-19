@@ -16,6 +16,7 @@ router.post('/:id/revise', QuotationsController.reviseQuotation);
 router.post('/:id/approve', QuotationsController.approveQuotation);
 router.post('/:id/decline', QuotationsController.declineQuotation);
 router.post('/:id/send', QuotationsController.sendQuotation);
+router.delete('/:id', QuotationsController.deleteQuotation);
 router.patch('/:id/status', QuotationsController.updateQuotationStatus);
 router.post('/:id/signed-copy', uploadSignedCopy.single('signedCopy'), QuotationsController.uploadSignedCopy);
 

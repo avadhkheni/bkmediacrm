@@ -42,13 +42,13 @@ export default function DispatchChecklistPage() {
       const [whRes, vidRes, ledRes, sndRes, inqRes] = await Promise.all([
         api.get("/warehouse"),
         api.get("/video/equipment?status=AVAILABLE"),
-        api.get("/led/stock"),
+        api.get("/led/stock?status=AVAILABLE"),
         api.get("/sound/equipment?status=AVAILABLE"),
         api.get("/inquiries")
       ]);
       setWarehouses(whRes.data || []);
       setVideoStock(vidRes.data || []);
-      setLedStock((ledRes.data || []).filter((l: any) => l.status === 'AVAILABLE'));
+      setLedStock(ledRes.data || []);
       setSoundStock(sndRes.data || []);
       setInquiries(inqRes.data?.data || []);
     } catch (error) {

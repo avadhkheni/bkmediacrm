@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── AUTH ───────────────────────────────────────────────
@@ -144,6 +145,7 @@ model Quotation {
   createdById       Int?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
 
   videoQuotationItems  VideoQuotationItem[]
   ledQuotationItems    LedQuotationItem[]
@@ -249,6 +251,10 @@ model Vendor {
   ledVendorArrangements LedVendorArrangement[]
   products              VendorProduct[]
   rentals               VendorRental[]
+
+  videoQuotationItems   VideoQuotationItem[] @relation("VideoVendor")
+  ledQuotationItems     LedQuotationItem[]   @relation("LedVendor")
+  soundQuotationItems   SoundQuotationItem[] @relation("SoundVendor")
 }
 
 model VendorProduct {
@@ -257,6 +263,7 @@ model VendorProduct {
   vendor     Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   name       String
   category   String // VIDEO, LED, SOUND
+  quantity   Int      @default(1)
   ratePerDay Decimal
   createdAt  DateTime @default(now())
 }
@@ -327,6 +334,7 @@ model Vehicle {
   capacityNotes String?
   isActive      Boolean   @default(true)
   deletedAt     DateTime?
+  status        String    @default("AVAILABLE") // AVAILABLE | READY_TO_LEAVE | LEFT_FOR_EVENT
 
   dispatchStaffAssignments DispatchStaffAssignment[]
 }
@@ -353,8 +361,13 @@ model VideoQuotationItem {
   equipmentType String
   ratePerDay    Decimal
   days          Int
+  nos           Int       @default(1)
   totalAmount   Decimal
   sortOrder     Int       @default(0)
+
+  isVendorRented Boolean @default(false)
+  vendorId       Int?
+  vendor         Vendor?   @relation("VideoVendor", fields: [vendorId], references: [id], onDelete: SetNull)
 }
 
 model VideoEquipment {
@@ -430,8 +443,13 @@ model SoundQuotationItem {
   equipmentType String
   ratePerDay    Decimal
   days          Int
+  nos           Int       @default(1)
   totalAmount   Decimal
   sortOrder     Int       @default(0)
+
+  isVendorRented Boolean @default(false)
+  vendorId       Int?
+  vendor         Vendor?   @relation("SoundVendor", fields: [vendorId], references: [id], onDelete: SetNull)
 }
 
 model OfficeQuotationItem {
@@ -559,12 +577,16 @@ model LedQuotationItem {
   days         Int
   totalAmount  Decimal
   sortOrder    Int       @default(0)
+
+  isVendorRented Boolean @default(false)
+  vendorId       Int?
+  vendor         Vendor?   @relation("LedVendor", fields: [vendorId], references: [id], onDelete: SetNull)
 }
 
 model LedWarehouseAllocation {
   id            Int       @id @default(autoincrement())
   inquiryId     Int
-  inquiry       Inquiry   @relation(fields: [inquiryId], references: [id])
+  inquiry       Inquiry  @relation(fields: [inquiryId], references: [id])
   ledStockId    Int
   ledStock      LedStock  @relation(fields: [ledStockId], references: [id])
   allocatedSqft Int
@@ -707,9 +729,11 @@ model OfficeTask {
   reviewDone       Boolean @default(false)
   readyForDelivery Boolean @default(false)
 
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  previewUrl String?
+  comments   String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model Notification {

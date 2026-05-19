@@ -80,6 +80,15 @@ export default function DispatchTab({ inquiryId, department }: DispatchTabProps)
     }
   };
 
+  const updateVehicleStatus = async (vehicleId: number, status: string) => {
+    try {
+      await api.put(`/vehicles/${vehicleId}`, { status });
+      fetchData();
+    } catch (error: any) {
+      alert(error.response?.data?.message || "Failed to update vehicle status");
+    }
+  };
+
   const addLedBox = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -123,6 +132,12 @@ export default function DispatchTab({ inquiryId, department }: DispatchTabProps)
         </h3>
 
         <div className="bg-white dark:bg-slate-900/50 rounded-2xl p-6 border border-gray-100 dark:border-slate-800 shadow-sm">
+          <div className="mb-5 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 rounded-xl">
+            <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
+              ℹ️ Before assigning vehicles and staff, you must complete and approve the Dispatch Checklist in the <strong>To-Do & Checklists</strong> section.
+            </p>
+          </div>
+
           <form onSubmit={assignStaff} className="flex flex-col gap-4 mb-6">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -168,10 +183,38 @@ export default function DispatchTab({ inquiryId, department }: DispatchTabProps)
                   <div>
                     <p className="text-sm font-bold text-slate-800 dark:text-white">{assignment.staff.name}</p>
                     <p className="text-xs text-slate-500">Vehicle: <span className="font-semibold text-slate-700 dark:text-slate-300">{assignment.vehicle.name} ({assignment.vehicle.numberPlate})</span></p>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {assignment.vehicle.status === 'READY_TO_LEAVE' && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                          Ready to Leave
+                        </span>
+                      )}
+                      {assignment.vehicle.status === 'LEFT_FOR_EVENT' && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+                          Left for Event
+                        </span>
+                      )}
+                      {assignment.vehicle.status === 'AVAILABLE' && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                          Available / In Yard
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <button onClick={() => removeStaff(assignment.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {assignment.vehicle.status === 'READY_TO_LEAVE' && (
+                      <button 
+                        onClick={() => updateVehicleStatus(assignment.vehicle.id, 'LEFT_FOR_EVENT')}
+                        className="px-2 py-1 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors flex items-center gap-1 shadow-sm"
+                      >
+                        <Truck className="w-3.5 h-3.5" />
+                        Mark as Left
+                      </button>
+                    )}
+                    <button onClick={() => removeStaff(assignment.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))
             )}

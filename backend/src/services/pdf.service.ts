@@ -69,10 +69,10 @@ export async function generateQuotationPdf(quotationId: number): Promise<Buffer>
   if (dept === 'VIDEO') {
     itemsHtml = `
       <table>
-        <thead><tr><th>#</th><th>Place</th><th>Position</th><th>Equipment</th><th>Days</th></tr></thead>
+        <thead><tr><th>#</th><th>Place</th><th>Position</th><th>Equipment</th><th>Nos</th><th>Days</th></tr></thead>
         <tbody>
           ${quotation.videoQuotationItems.map((item, i) => `
-            <tr><td>${i + 1}</td><td>${item.placeName}</td><td>${item.position}</td><td>${item.equipmentType}</td><td>${item.days}</td></tr>
+            <tr><td>${i + 1}</td><td>${item.placeName}</td><td>${item.position}</td><td>${item.equipmentType}</td><td>${item.nos}</td><td>${item.days}</td></tr>
           `).join('')}
         </tbody>
       </table>`;
@@ -474,5 +474,116 @@ export async function generateVendorRentalsPdf(): Promise<Buffer> {
     </div>
   `;
   return htmlToPdf(baseHtml('Vendor Rentals Report', body));
+}
+
+export async function generateIndividualVendorRentalPdf(rentalId: number): Promise<Buffer> {
+  const rental = await prisma.vendorRental.findUnique({
+    where: { id: rentalId },
+    include: {
+      vendor: true,
+      inquiry: {
+        include: {
+          client: true
+        }
+      }
+    }
+  });
+
+  if (!rental) {
+    throw new Error('Vendor rental record not found');
+  }
+
+  const rentedStr = rental.rentedDate ? new Date(rental.rentedDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+  const endStr = rental.endDate ? new Date(rental.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+  const fromEventStr = rental.returnedFromEventDate ? new Date(rental.returnedFromEventDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Pending';
+  const toVendorStr = rental.returnedToVendorDate ? new Date(rental.returnedToVendorDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Pending';
+
+  const body = `
+    <div class="header">
+      <div>
+        <h1>Vendor Hired Rental Record</h1>
+        <p style="font-size:12px;color:#555;margin-top:2px">Transaction ID: #${rental.id}</p>
+      </div>
+      <div class="meta">
+        <strong>Date:</strong> ${new Date(rental.createdAt).toLocaleDateString('en-IN')}<br>
+        <strong>Status:</strong> <span class="badge ${rental.status === 'RETURNED_TO_VENDOR' ? 'badge-green' : 'badge-amber'}">${rental.status.replace(/_/g, ' ')}</span>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;gap:20px;margin-bottom:20px">
+      <div style="flex:1;border:1px solid #e2e8f0;padding:12px;border-radius:8px;background:#f8fafc">
+        <h3 style="font-size:12px;font-weight:700;color:#1e40af;margin-bottom:6px;border-bottom:1px solid #cbd5e1;padding-bottom:4px">VENDOR DETAILS</h3>
+        <strong>Name:</strong> ${rental.vendor?.name || '-'}<br>
+        <strong>Phone:</strong> ${rental.vendor?.phone || '-'}<br>
+        <strong>Email:</strong> ${rental.vendor?.email || '-'}<br>
+        <strong>GST No:</strong> ${rental.vendor?.gstNumber || '-'}<br>
+        <strong>Address:</strong> ${rental.vendor?.address || '-'}
+      </div>
+      <div style="flex:1;border:1px solid #e2e8f0;padding:12px;border-radius:8px;background:#f8fafc">
+        <h3 style="font-size:12px;font-weight:700;color:#1e40af;margin-bottom:6px;border-bottom:1px solid #cbd5e1;padding-bottom:4px">EVENT DEPLOYMENT</h3>
+        <strong>Event Name:</strong> ${rental.inquiry?.eventName || '-'}<br>
+        <strong>Venue:</strong> ${rental.inquiry?.venue || '-'}<br>
+        <strong>Client:</strong> ${rental.inquiry?.client?.name || '-'}<br>
+        <strong>Event Period:</strong> ${rental.inquiry ? `${new Date(rental.inquiry.startDate).toLocaleDateString()} to ${new Date(rental.inquiry.endDate).toLocaleDateString()}` : '-'}
+      </div>
+    </div>
+
+    <div class="section-title">RENTED ITEM & PRICING</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Hired Equipment / Item</th>
+          <th>Quantity</th>
+          <th>Rate (per day)</th>
+          <th>Total Cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>${rental.itemName}</strong></td>
+          <td>${rental.quantity} unit(s)</td>
+          <td>₹${Number(rental.pricePerDay).toLocaleString('en-IN')}</td>
+          <td><strong>₹${Number(rental.totalCost).toLocaleString('en-IN')}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="section-title" style="margin-top:20px">LOGISTICS & RETURN HISTORY</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Milestone</th>
+          <th>Date Logged</th>
+          <th>Status Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Rented / Dispatched</strong></td>
+          <td>${rentedStr}</td>
+          <td>Item received from vendor and prepared for deployment</td>
+        </tr>
+        <tr>
+          <td><strong>Returned from Event Venue</strong></td>
+          <td>${fromEventStr}</td>
+          <td>${rental.returnedFromEventDate ? 'Returned back to BK Media warehouse' : 'In use at event / venue'}</td>
+        </tr>
+        <tr>
+          <td><strong>Returned to Vendor Supplier</strong></td>
+          <td>${toVendorStr}</td>
+          <td>${rental.returnedToVendorDate ? 'Returned back to vendor (closed transaction)' : 'Outstanding return back to supplier'}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    ${rental.notes ? `
+      <div class="section-title" style="margin-top:20px">REMARKS & NOTES</div>
+      <div style="border:1px solid #e2e8f0;padding:12px;border-radius:8px;background:#fff;font-style:italic">
+        ${rental.notes}
+      </div>
+    ` : ''}
+  `;
+
+  return htmlToPdf(baseHtml(`Vendor Rental #${rental.id} Challan`, body));
 }
 

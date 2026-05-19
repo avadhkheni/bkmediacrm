@@ -276,21 +276,24 @@ export const getAvailabilityAnalytics = async (req: Request, res: Response) => {
 // ─── VIDEO DEPARTMENT ANALYTICS ─────────────────────────
 export const getVideoAnalytics = async (req: Request, res: Response) => {
   try {
-    const totalEquipment = await prisma.videoEquipment.count({ where: { deletedAt: null } });
+    const totals = await prisma.videoEquipment.aggregate({
+      where: { deletedAt: null },
+      _sum: { totalQuantity: true, availableQuantity: true, inUseQuantity: true, maintenanceQuantity: true }
+    });
+    
+    const totalEquipment = totals._sum.totalQuantity || 0;
 
-    const byCategory = await prisma.videoEquipment.groupBy({
-      by: ['category'], _count: { id: true }, where: { deletedAt: null }
+    const categoryGroups = await prisma.videoEquipment.groupBy({
+      by: ['category'], _sum: { totalQuantity: true }, where: { deletedAt: null }
     });
-    const byStatus = await prisma.videoEquipment.groupBy({
-      by: ['status'], _count: { id: true }, where: { deletedAt: null }
-    });
-    const byBrand = await prisma.videoEquipment.groupBy({
-      by: ['brand'], _count: { id: true }, where: { deletedAt: null, brand: { not: null } }
+    
+    const brandGroups = await prisma.videoEquipment.groupBy({
+      by: ['brand'], _sum: { totalQuantity: true }, where: { deletedAt: null, brand: { not: null } }
     });
 
     const activeBookings = await prisma.videoEventBooking.count({ where: { status: 'BOOKED' } });
 
-    // Most booked equipment
+    // Most booked equipment (counts booking events)
     const mostBookedRaw = await prisma.videoEventBooking.groupBy({
       by: ['equipmentId'], _count: { id: true },
       orderBy: { _count: { id: 'desc' } }, take: 10
@@ -299,12 +302,18 @@ export const getVideoAnalytics = async (req: Request, res: Response) => {
       const eq = await prisma.videoEquipment.findUnique({ where: { id: m.equipmentId }, select: { name: true } });
       return { name: eq?.name || 'Unknown', bookings: m._count.id };
     }));
+    
+    const byStatus = [
+      { name: 'AVAILABLE', value: totals._sum.availableQuantity || 0 },
+      { name: 'IN_USE', value: totals._sum.inUseQuantity || 0 },
+      { name: 'MAINTENANCE', value: totals._sum.maintenanceQuantity || 0 },
+    ].filter(s => s.value > 0);
 
     res.json({
       totalEquipment, activeBookings,
-      byCategory: byCategory.map(c => ({ name: c.category, value: c._count.id })),
-      byStatus: byStatus.map(s => ({ name: s.status, value: s._count.id })),
-      byBrand: byBrand.map(b => ({ name: b.brand || 'Unknown', value: b._count.id })),
+      byCategory: categoryGroups.map(c => ({ name: c.category, value: c._sum.totalQuantity || 0 })),
+      byStatus,
+      byBrand: brandGroups.map(b => ({ name: b.brand || 'Unknown', value: b._sum.totalQuantity || 0 })),
       mostBooked
     });
   } catch (error) {

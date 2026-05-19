@@ -427,7 +427,7 @@ export default function SoundSetupTab({ inquiryId }: SoundSetupTabProps) {
                 <h3 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">Allocate Equipment</h3>
                 <p className="text-xs text-slate-400 font-semibold mt-1 uppercase tracking-wide">{selectedGear.name}</p>
               </div>
-              <button onClick={() => setShowAllocModal(false)} className="text-slate-400 hover:text-slate-650 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors">
+              <button onClick={() => setShowAllocModal(false)} className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>

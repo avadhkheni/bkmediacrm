@@ -13,6 +13,7 @@ export const startSoftDeleteCleanupJob = () => {
         'client',
         'staff',
         'inquiry',
+        'quotation',
         'videoEquipment',
         'ledStock',
         'vehicle',

@@ -272,7 +272,21 @@ export const deleteUser = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Cannot delete ADMIN account' });
     }
 
-    await prisma.user.delete({ where: { id: Number(id) } });
+    // Soft delete the user by setting deletedAt, deactivating, clearing the staff connection,
+    // and renaming the email to release the unique constraints while preserving audit logs.
+    await prisma.$transaction([
+      prisma.refreshToken.deleteMany({ where: { userId: Number(id) } }),
+      prisma.user.update({
+        where: { id: Number(id) },
+        data: {
+          deletedAt: new Date(),
+          isActive: false,
+          email: `${user.email}_deleted_${Date.now()}`,
+          staffId: null
+        }
+      })
+    ]);
+
     res.json({ message: 'User account deleted successfully' });
   } catch (error) {
     console.error('Delete user error:', error);

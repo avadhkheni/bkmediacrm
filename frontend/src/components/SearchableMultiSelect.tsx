@@ -192,7 +192,7 @@ export default function SearchableMultiSelect({
                             max={opt.maxQuantity}
                             value={isSelected.quantity}
                             onChange={(e) => handleQuantityChange(opt.id, parseInt(e.target.value) || 1, opt.maxQuantity)}
-                            className="w-16 px-2 py-1 text-xs font-bold text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-md outline-none focus:ring-2 focus:ring-blue-500/30 transition-all"
+                            className="w-16 px-2 py-1 text-xs font-bold text-center text-slate-900 dark:text-white bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-md outline-none focus:ring-2 focus:ring-blue-500/30 transition-all"
                           />
                         </div>
                       )}

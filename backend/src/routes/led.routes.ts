@@ -19,5 +19,7 @@ router.delete('/arrangements/:id', authenticate, LedController.deleteLedArrangem
 
 router.get('/type-rates', authenticate, LedController.getLedTypeRates);
 router.put('/type-rates/:id', authenticate, LedController.updateLedTypeRate);
+router.get('/quotation-items/sqft-summary', authenticate, LedController.getLedQuotationSqftSummary);
+router.post('/calculate-clear-size', authenticate, LedController.calculateClearSizeController);
 
 export default router;

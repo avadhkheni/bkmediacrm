@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../utils/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { uploadToCloudinary } from '../utils/cloudinary';
 
 export const getStaff = async (req: Request, res: Response) => {
   try {
@@ -188,8 +189,12 @@ export const uploadAadhar = async (req: any, res: Response) => {
     if (!existing) return res.status(404).json({ message: 'Staff not found' });
 
     const updateData: any = {};
-    if (files?.front?.[0]) updateData.aadharFront = files.front[0].path.replace(/\\/g, '/');
-    if (files?.back?.[0]) updateData.aadharBack = files.back[0].path.replace(/\\/g, '/');
+    if (files?.front?.[0]) {
+      updateData.aadharFront = await uploadToCloudinary(files.front[0].buffer, 'aadhar', 'image');
+    }
+    if (files?.back?.[0]) {
+      updateData.aadharBack = await uploadToCloudinary(files.back[0].buffer, 'aadhar', 'image');
+    }
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ message: 'No files uploaded' });

@@ -43,13 +43,13 @@ export default function ReturnChecklistPage() {
       const [whRes, vidRes, ledRes, sndRes, inqRes] = await Promise.all([
         api.get("/warehouse"),
         api.get("/video/equipment?status=IN_USE"),
-        api.get("/led/stock"),
+        api.get("/led/stock?status=IN_USE"),
         api.get("/sound/equipment?status=IN_USE"),
         api.get("/inquiries")
       ]);
       setWarehouses(whRes.data || []);
       setVideoStock(vidRes.data || []);
-      setLedStock((ledRes.data || []).filter((l: any) => l.status === 'IN_USE' || l.status === 'BOOKED'));
+      setLedStock(ledRes.data || []);
       setSoundStock(sndRes.data || []);
       setInquiries(inqRes.data?.data || []);
     } catch (error) {

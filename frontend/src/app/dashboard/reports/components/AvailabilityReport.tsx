@@ -2,7 +2,9 @@
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Users, Monitor, Layers, Download } from 'lucide-react';
+import { Users, Monitor, Layers, Download, FileDown } from 'lucide-react';
+import { exportToCSV } from "@/lib/exportUtils";
+import { generateAvailabilityReportPDF } from "@/lib/pdfGenerator";
 
 const COLORS = ['#10b981','#ef4444','#f59e0b','#3b82f6','#8b5cf6'];
 
@@ -13,6 +15,22 @@ export default function AvailabilityReport() {
   useEffect(() => {
     api.get('/analytics/availability-report').then(r => setData(r.data)).catch(console.error).finally(() => setLoading(false));
   }, []);
+
+  const handleExportCSV = () => {
+    if (!data) return;
+    const headers = ['Resource Category', 'Available / Free', 'Total Assets', 'Utilization Rate'];
+    const rows = [
+      ['Staff Members', `${data.staff.available} / ${data.staff.total}`, data.staff.total, `${data.staff.utilization}%`],
+      ['LED Screen SqFt', `${data.led.freeSqft} SqFt / ${data.led.freeSqft + data.led.bookedSqft} SqFt`, data.led.freeSqft + data.led.bookedSqft, `${data.led.utilization}%`],
+      ['Video Equipment', `${data.video.free} / ${data.video.total}`, data.video.total, `${data.video.utilization}%`]
+    ];
+    exportToCSV(headers, rows, `Resource_Availability_Report_${new Date().toISOString().split('T')[0]}.csv`);
+  };
+
+  const handleExportPDF = () => {
+    if (!data) return;
+    generateAvailabilityReportPDF(data);
+  };
 
   if (loading) return <div className="py-12 text-center text-slate-500">Loading availability data...</div>;
   if (!data) return <div className="py-12 text-center text-red-500">Failed to load data.</div>;
@@ -34,6 +52,14 @@ export default function AvailabilityReport() {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end gap-3">
+        <button onClick={handleExportCSV} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-all flex items-center gap-2">
+          <Download className="w-4 h-4" /> Export CSV
+        </button>
+        <button onClick={handleExportPDF} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-200 dark:shadow-none">
+          <FileDown className="w-4 h-4" /> Export PDF
+        </button>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {cards.map((c,i) => (
           <div key={i} className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-white/20 dark:border-slate-700 p-5 rounded-2xl shadow-sm">

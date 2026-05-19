@@ -1,4 +1,4 @@
-# BK Media CRM — Complete Developer Documentation
+http://localhost:3000/dashboard/vendors# BK Media CRM — Complete Developer Documentation
 
 **Company:** BK Media, Vadodara, Gujarat
 **Tech Stack:** Next.js (Frontend) · Node.js / Express.js (Backend API) · PostgreSQL (Database)

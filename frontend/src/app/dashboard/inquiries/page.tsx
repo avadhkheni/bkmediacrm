@@ -150,7 +150,7 @@ export default function InquiriesPage() {
                   setStartDate("");
                   setEndDate("");
                 }}
-                className="text-xs font-extrabold text-red-500 hover:text-red-650 dark:text-red-400 dark:hover:text-red-300 transition-colors uppercase tracking-wider"
+                className="text-xs font-extrabold text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 transition-colors uppercase tracking-wider"
               >
                 Clear All Filters
               </button>

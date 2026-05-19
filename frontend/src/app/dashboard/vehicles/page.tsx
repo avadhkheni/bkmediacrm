@@ -24,6 +24,7 @@ interface Vehicle {
   vehicleType: string;
   capacityNotes: string | null;
   isActive: boolean;
+  status: string;
   dispatchStaffAssignments: any[];
 }
 
@@ -279,10 +280,22 @@ export default function VehiclesMasterPage() {
                 <div className="mt-6 pt-4 border-t border-slate-50 dark:border-slate-750 flex items-center justify-between">
                   <div>
                     {hasDispatches ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        On Dispatch Assignment
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                          On Dispatch Assignment
+                        </span>
+                        {vehicle.status === 'READY_TO_LEAVE' && (
+                          <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 rounded self-start">
+                            Ready to Leave
+                          </span>
+                        )}
+                        {vehicle.status === 'LEFT_FOR_EVENT' && (
+                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded self-start">
+                            Left for Event
+                          </span>
+                        )}
+                      </div>
                     ) : (
                       <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
                         Available in Yard
@@ -291,7 +304,24 @@ export default function VehiclesMasterPage() {
                   </div>
 
                   {/* Action buttons */}
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-1.5 items-center">
+                    {vehicle.status === 'READY_TO_LEAVE' && (
+                      <button 
+                        onClick={async () => {
+                          try {
+                            await api.put(`/vehicles/${vehicle.id}`, { status: 'LEFT_FOR_EVENT' });
+                            fetchVehicles();
+                          } catch (e: any) {
+                            alert(e.response?.data?.message || "Failed to update status");
+                          }
+                        }}
+                        className="px-2.5 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-all shadow-sm flex items-center gap-1"
+                        title="Mark as Left for Event"
+                      >
+                        <Truck className="w-3.5 h-3.5" />
+                        Depart
+                      </button>
+                    )}
                     <button
                       onClick={() => handleEdit(vehicle)}
                       className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all"

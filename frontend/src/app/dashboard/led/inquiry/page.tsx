@@ -291,7 +291,7 @@ function LedInquiryContent() {
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white leading-none">Rent Outside Stock</h3>
                 <p className="text-xs text-slate-400 font-medium mt-1">Rent extra LED panels from outside suppliers to meet requirements.</p>
               </div>
-              <button onClick={() => setShowArrangementModal(false)} className="text-slate-400 hover:text-slate-650 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900 transition-all">✕</button>
+              <button onClick={() => setShowArrangementModal(false)} className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900 transition-all">✕</button>
             </div>
             
             <div className="p-6 space-y-4">

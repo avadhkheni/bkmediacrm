@@ -6,10 +6,33 @@ export const getEquipment = async (req: Request, res: Response) => {
     const { category, status } = req.query;
     const where: any = { deletedAt: null };
     if (category) where.category = category;
-    if (status) where.status = status;
+    
+    if (status === 'AVAILABLE') {
+      where.OR = [
+        { status: 'AVAILABLE' },
+        { availableQuantity: { gt: 0 } }
+      ];
+    } else if (status === 'IN_USE') {
+      where.OR = [
+        { status: 'IN_USE' },
+        { inUseQuantity: { gt: 0 } }
+      ];
+    } else if (status) {
+      where.status = status;
+    }
 
     const equipment = await prisma.videoEquipment.findMany({ where }); 
-    res.json(equipment);
+    
+    const mapped = equipment.map(e => {
+      let computedStatus = e.status;
+      if (e.availableQuantity > 0) computedStatus = 'AVAILABLE';
+      else if (e.inUseQuantity > 0) computedStatus = 'IN_USE';
+      else if (e.maintenanceQuantity > 0) computedStatus = 'MAINTENANCE';
+      
+      return { ...e, status: computedStatus };
+    });
+
+    res.json(mapped);
   } catch (error) {
     console.error('Error fetching equipment:', error);
     res.status(500).json({ message: 'Error fetching equipment' });

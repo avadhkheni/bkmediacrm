@@ -12,6 +12,8 @@ import {
   CalendarDays, CalendarRange, Download, FileDown,
   Eye, Users, CalendarCheck, Video, Monitor, UserCog, History
 } from 'lucide-react';
+import { exportToCSV } from "@/lib/exportUtils";
+import { generateInquiryReportPDF } from "@/lib/pdfGenerator";
 
 import ClientReport from './components/ClientReport';
 import AvailabilityReport from './components/AvailabilityReport';
@@ -74,16 +76,22 @@ function InquiryReport() {
     }
     const headers = ["Inquiry Number", "Client Name", "Event Name", "Venue", "Status", "Total Days", "Start Date", "End Date", "Special Notes"];
     const rows = stats.recentInquiries.map((inq: any) => [
-      inq.inquiryNumber || `INQ-${inq.id}`, inq.client?.name || "-", inq.eventName, inq.venue, inq.status, inq.totalDays,
-      new Date(inq.startDate).toLocaleDateString(), new Date(inq.endDate).toLocaleDateString(),
-      (inq.specialNotes || "").replace(/,/g, ";")
+      inq.inquiryNumber || `INQ-${inq.id}`, 
+      inq.client?.name || "-", 
+      inq.eventName || "", 
+      inq.venue || "", 
+      inq.status || "", 
+      inq.totalDays || 0,
+      new Date(inq.startDate).toLocaleDateString(), 
+      new Date(inq.endDate).toLocaleDateString(),
+      inq.specialNotes || ""
     ]);
-    let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map((e: any) => e.join(",")).join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `BK_Media_Inquiries_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    exportToCSV(headers, rows, `BK_Media_Inquiries_${new Date().toISOString().split('T')[0]}.csv`);
+  };
+
+  const handleExportPDF = () => {
+    if (!stats) return;
+    generateInquiryReportPDF(stats, filters);
   };
 
   if (loading && !stats) return <div className="p-8 text-slate-500">Preparing insights...</div>;
@@ -141,9 +149,12 @@ function InquiryReport() {
       </div>
 
       {/* Export */}
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-3">
         <button onClick={handleExportCSV} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-all flex items-center gap-2">
           <Download className="w-4 h-4" strokeWidth={1.75} /> Export CSV
+        </button>
+        <button onClick={handleExportPDF} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-200 dark:shadow-none">
+          <FileDown className="w-4 h-4" strokeWidth={1.75} /> Export PDF
         </button>
       </div>
 

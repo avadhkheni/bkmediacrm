@@ -1,17 +1,36 @@
 import { Request, Response } from 'express';
 import { prisma } from '../utils/prisma';
 
+function vendorMatchesDepartment(
+  departmentField: string | null | undefined,
+  department: string
+): boolean {
+  const dept = department.trim().toUpperCase();
+  const depts = (departmentField || '')
+    .split(',')
+    .map((d) => d.trim().toUpperCase())
+    .filter(Boolean);
+  if (!dept) return true;
+  if (depts.length === 0) return true;
+  return depts.includes(dept);
+}
+
 export const getVendors = async (req: Request, res: Response) => {
   try {
     const { department } = req.query;
-    const where: any = { isActive: true };
-    if (department) where.department = department as string;
 
-    const vendors = await prisma.vendor.findMany({
-      where,
+    let vendors = await prisma.vendor.findMany({
+      where: { isActive: true },
       include: { products: true },
       orderBy: { name: 'asc' }
     });
+
+    if (department && typeof department === 'string') {
+      vendors = vendors.filter((v) =>
+        vendorMatchesDepartment(v.department, department)
+      );
+    }
+
     res.json(vendors);
   } catch (error) {
     console.error('Error fetching vendors:', error);
@@ -74,7 +93,7 @@ export const deleteVendor = async (req: Request, res: Response) => {
 export const createVendorProduct = async (req: Request, res: Response) => {
   try {
     const { vendorId } = req.params;
-    const { name, category, ratePerDay } = req.body;
+    const { name, category, ratePerDay, quantity } = req.body;
 
     if (!name || !category || ratePerDay === undefined) {
       return res.status(400).json({ message: 'name, category, and ratePerDay are required' });
@@ -85,6 +104,7 @@ export const createVendorProduct = async (req: Request, res: Response) => {
         vendorId: Number(vendorId),
         name,
         category,
+        quantity: Number(quantity || 1),
         ratePerDay: Number(ratePerDay)
       }
     });
@@ -98,13 +118,14 @@ export const createVendorProduct = async (req: Request, res: Response) => {
 export const updateVendorProduct = async (req: Request, res: Response) => {
   try {
     const { productId } = req.params;
-    const { name, category, ratePerDay } = req.body;
+    const { name, category, ratePerDay, quantity } = req.body;
 
     const product = await prisma.vendorProduct.update({
       where: { id: Number(productId) },
       data: {
         ...(name !== undefined && { name }),
         ...(category !== undefined && { category }),
+        ...(quantity !== undefined && { quantity: Number(quantity) }),
         ...(ratePerDay !== undefined && { ratePerDay: Number(ratePerDay) })
       }
     });
@@ -150,6 +171,38 @@ export const getVendorRentals = async (req: Request, res: Response) => {
 
 export const createVendorRental = async (req: Request, res: Response) => {
   try {
+    const body = req.body;
+
+    if (Array.isArray(body)) {
+      const createdRentals = [];
+      for (const item of body) {
+        const { vendorId, itemName, quantity, rentedDate, endDate, pricePerDay, totalCost, inquiryId, notes } = item;
+        if (!vendorId || !itemName || !pricePerDay) {
+          return res.status(400).json({ message: 'vendorId, itemName, and pricePerDay are required for all items' });
+        }
+        const rental = await prisma.vendorRental.create({
+          data: {
+            vendorId: Number(vendorId),
+            itemName,
+            quantity: Number(quantity || 1),
+            rentedDate: rentedDate ? new Date(rentedDate) : new Date(),
+            endDate: endDate ? new Date(endDate) : null,
+            pricePerDay: Number(pricePerDay),
+            totalCost: Number(totalCost || (Number(pricePerDay) * Number(quantity || 1))),
+            inquiryId: inquiryId ? Number(inquiryId) : null,
+            notes,
+            status: 'RENTED'
+          },
+          include: {
+            vendor: true,
+            inquiry: true
+          }
+        });
+        createdRentals.push(rental);
+      }
+      return res.status(201).json(createdRentals);
+    }
+
     const { vendorId, itemName, quantity, rentedDate, endDate, pricePerDay, totalCost, inquiryId, notes } = req.body;
 
     if (!vendorId || !itemName || !pricePerDay) {

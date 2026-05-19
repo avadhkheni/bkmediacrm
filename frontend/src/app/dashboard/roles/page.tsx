@@ -539,7 +539,7 @@ export default function RolesPage() {
             {loadingUsers ? (
               <div className="flex flex-col items-center justify-center py-20 gap-3">
                 <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
-                <p className="text-slate-450 font-bold text-xs tracking-wider">Retrieving logins...</p>
+                <p className="text-slate-500 font-bold text-xs tracking-wider">Retrieving logins...</p>
               </div>
             ) : users.length === 0 ? (
               <div className="text-center py-20 text-slate-400 dark:text-slate-500 text-sm font-semibold">
@@ -581,11 +581,11 @@ export default function RolesPage() {
                         </td>
 
                         {/* Linked Staff */}
-                        <td className="p-4 text-sm text-slate-650 dark:text-slate-350 font-bold">
+                        <td className="p-4 text-sm text-slate-700 dark:text-slate-350 font-bold">
                           {userItem.staff ? (
                             <div>
                               <span>{userItem.staff.name}</span>
-                              <span className="text-[10px] block text-slate-450 uppercase font-bold tracking-wider">
+                              <span className="text-[10px] block text-slate-500 uppercase font-bold tracking-wider">
                                 {userItem.staff.department || "General Team"} • {userItem.staff.phone}
                               </span>
                             </div>
@@ -604,7 +604,7 @@ export default function RolesPage() {
                                 ? 'opacity-40 cursor-not-allowed text-green-500'
                                 : userItem.isActive 
                                 ? 'text-green-500 hover:text-green-600' 
-                                : 'text-slate-300 dark:text-slate-600 hover:text-slate-450'
+                                : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'
                             }`}
                             title={userItem.isActive ? "Deactivate Account" : "Activate Account"}
                           >
@@ -662,7 +662,7 @@ export default function RolesPage() {
                         {role._count?.users || 0} Users
                       </span>
                     </div>
-                    <p className="text-xs mt-1 text-slate-500 dark:text-slate-455 line-clamp-2">
+                    <p className="text-xs mt-1 text-slate-500 dark:text-slate-400 line-clamp-2">
                       {role.description || "No description provided."}
                     </p>
                   </button>

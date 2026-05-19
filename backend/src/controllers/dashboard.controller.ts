@@ -103,10 +103,10 @@ export const getUpcomingEvents = async (req: Request, res: Response) => {
 export const getPendingActions = async (req: Request, res: Response) => {
   try {
     // Draft quotations needing approval
-    const draftQuotations = await prisma.quotation.count({ where: { status: 'DRAFT' } });
+    const draftQuotations = await prisma.quotation.count({ where: { status: 'DRAFT', deletedAt: null } });
 
     // Sent quotations awaiting client confirmation
-    const sentQuotations = await prisma.quotation.count({ where: { status: 'SENT' } });
+    const sentQuotations = await prisma.quotation.count({ where: { status: 'SENT', deletedAt: null } });
 
     // Pending invoices (not fully paid)
     const pendingInvoices = await prisma.invoice.count({ where: { status: { in: ['PENDING', 'PARTIAL'] } } });

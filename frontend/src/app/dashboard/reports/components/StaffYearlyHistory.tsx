@@ -12,12 +12,15 @@ import {
   IndianRupee, 
   ClipboardList, 
   Download,
+  FileDown,
   Search,
   ChevronRight,
   TrendingUp,
   MapPin
 } from 'lucide-react';
 import { format } from "date-fns";
+import { exportToCSV } from "@/lib/exportUtils";
+import { generateStaffYearlyHistoryPDF } from "@/lib/pdfGenerator";
 
 export default function StaffYearlyHistory() {
   const [staffList, setStaffList] = useState<any[]>([]);
@@ -56,17 +59,16 @@ export default function StaffYearlyHistory() {
     fetchHistory();
   }, [selectedStaffId, selectedYear]);
 
-  const handleExport = () => {
+  const handleExportCSV = () => {
     if (!historyData) return;
     const headers = ["Month", "Events", "Total Days", "Earnings"];
     const rows = historyData.monthlyBreakdown.map((m: any) => [m.month, m.events, m.days, m.earnings]);
-    const csv = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map((r: any) => r.join(",")).join("\n");
-    const link = document.createElement("a");
-    link.href = encodeURI(csv);
-    link.download = `${historyData.staffName}_${selectedYear}_History.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportToCSV(headers, rows, `${historyData.staffName}_${selectedYear}_History.csv`);
+  };
+
+  const handleExportPDF = () => {
+    if (!historyData) return;
+    generateStaffYearlyHistoryPDF(historyData, selectedYear);
   };
 
   return (
@@ -102,12 +104,22 @@ export default function StaffYearlyHistory() {
           </select>
         </div>
         {historyData && (
-          <button 
-            onClick={handleExport}
-            className="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 px-4 py-3 rounded-xl transition-all"
-          >
-            <Download className="w-5 h-5" />
-          </button>
+          <div className="flex gap-3">
+            <button 
+              onClick={handleExportCSV}
+              className="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 px-4 py-3 rounded-xl transition-all flex items-center gap-2 font-bold text-xs"
+              title="Export CSV"
+            >
+              <Download className="w-5 h-5" /> CSV
+            </button>
+            <button 
+              onClick={handleExportPDF}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl transition-all shadow-lg shadow-blue-200 dark:shadow-none flex items-center gap-2 font-bold text-xs"
+              title="Export PDF"
+            >
+              <FileDown className="w-5 h-5" /> PDF
+            </button>
+          </div>
         )}
       </div>
 

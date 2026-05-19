@@ -48,7 +48,7 @@ export const createVehicle = async (req: Request, res: Response) => {
 export const updateVehicle = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, numberPlate, vehicleType, capacityNotes, isActive } = req.body;
+    const { name, numberPlate, vehicleType, capacityNotes, isActive, status } = req.body;
 
     const existing = await prisma.vehicle.findUnique({ where: { id: Number(id) } });
     if (!existing) return res.status(404).json({ message: 'Vehicle not found' });
@@ -61,6 +61,7 @@ export const updateVehicle = async (req: Request, res: Response) => {
         ...(vehicleType !== undefined && { vehicleType }),
         ...(capacityNotes !== undefined && { capacityNotes }),
         ...(isActive !== undefined && { isActive }),
+        ...(status !== undefined && { status }),
       },
     });
     res.json(vehicle);

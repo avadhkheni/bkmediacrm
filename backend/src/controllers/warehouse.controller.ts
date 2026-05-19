@@ -123,6 +123,21 @@ export const createDispatch = async (req: Request, res: Response) => {
       }
     });
 
+    // If all items are passed, set assigned vehicles status to READY_TO_LEAVE
+    const allPassed = (itemsToCheck || []).length > 0 && (itemsToCheck || []).every((check: any) => check.isPassed === true);
+    if (allPassed) {
+      const assignments = await prisma.dispatchStaffAssignment.findMany({
+        where: { inquiryId: numericInquiryId }
+      });
+      const vehicleIds = assignments.map(a => a.vehicleId);
+      if (vehicleIds.length > 0) {
+        await prisma.vehicle.updateMany({
+          where: { id: { in: vehicleIds } },
+          data: { status: 'READY_TO_LEAVE' }
+        });
+      }
+    }
+
     // Update statuses and quantities
     if (items && Array.isArray(items)) {
       for (const item of items) {
@@ -205,6 +220,18 @@ export const createReturn = async (req: Request, res: Response) => {
         }
       }
     });
+
+    // Set inquiry's assigned vehicles status back to AVAILABLE upon return checklist submission
+    const assignments = await prisma.dispatchStaffAssignment.findMany({
+      where: { inquiryId: numericInquiryId }
+    });
+    const vehicleIds = assignments.map(a => a.vehicleId);
+    if (vehicleIds.length > 0) {
+      await prisma.vehicle.updateMany({
+        where: { id: { in: vehicleIds } },
+        data: { status: 'AVAILABLE' }
+      });
+    }
 
     if (items && Array.isArray(items)) {
       for (const item of items) {

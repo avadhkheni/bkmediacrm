@@ -40,7 +40,7 @@ export const getTasks = async (req: Request, res: Response) => {
 
 export const createTask = async (req: Request, res: Response) => {
   try {
-    const { inquiryId, title, description, subDepartment, priority, deadline, assignedStaffId } = req.body;
+    const { inquiryId, title, description, subDepartment, priority, deadline, assignedStaffId, previewUrl, comments } = req.body;
     const task = await prisma.officeTask.create({
       data: {
         inquiryId: inquiryId ? Number(inquiryId) : null,
@@ -50,7 +50,9 @@ export const createTask = async (req: Request, res: Response) => {
         priority: priority || 'MEDIUM',
         deadline: deadline ? new Date(deadline) : null,
         assignedStaffId: assignedStaffId ? Number(assignedStaffId) : null,
-        status: 'NOT_STARTED'
+        status: 'NOT_STARTED',
+        previewUrl,
+        comments
       },
       include: {
         inquiry: true,
@@ -79,6 +81,8 @@ export const updateTask = async (req: Request, res: Response) => {
       editingStarted,
       reviewDone,
       readyForDelivery,
+      previewUrl,
+      comments,
       notes
     } = req.body;
 
@@ -96,6 +100,8 @@ export const updateTask = async (req: Request, res: Response) => {
         editingStarted,
         reviewDone,
         readyForDelivery,
+        previewUrl,
+        comments,
         notes
       },
       include: {
