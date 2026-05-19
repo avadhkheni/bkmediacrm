@@ -8,16 +8,18 @@ import path from 'path';
 const app: Application = express();
 
 // Ensure upload directories exist
-const uploadDirs = [
-  path.join(process.cwd(), 'uploads'),
-  path.join(process.cwd(), 'uploads', 'aadhar'),
-  path.join(process.cwd(), 'uploads', 'signed-copies')
-];
-uploadDirs.forEach(dir => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-});
+if (!process.env.VERCEL) {
+  const uploadDirs = [
+    path.join(process.cwd(), 'uploads'),
+    path.join(process.cwd(), 'uploads', 'aadhar'),
+    path.join(process.cwd(), 'uploads', 'signed-copies')
+  ];
+  uploadDirs.forEach(dir => {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  });
+}
 
 // Middleware
 app.use(express.json());
