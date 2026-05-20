@@ -132,18 +132,37 @@ export const deleteRole = async (req: Request, res: Response) => {
 
     const role = await prisma.role.findUnique({ 
       where: { name },
-      include: { _count: { select: { users: true } } }
+      include: { 
+        users: {
+          select: { id: true, deletedAt: true }
+        }
+      }
     });
     
     if (!role) {
       return res.status(404).json({ message: 'Role not found' });
     }
     
-    if (role._count.users > 0) {
-      return res.status(400).json({ message: 'Cannot delete role with assigned users' });
+    const activeUsers = role.users.filter(u => u.deletedAt === null);
+    if (activeUsers.length > 0) {
+      return res.status(400).json({ message: 'Cannot delete role that has active users assigned to it. Please reassign or delete those users first.' });
     }
 
-    await prisma.role.delete({ where: { name } });
+    // If there are soft-deleted users, we must reassign their role before we can delete this role
+    // because of the database foreign key constraint. We'll assign them to ADMIN (since they are deleted, it's safe).
+    const deletedUsers = role.users.filter(u => u.deletedAt !== null);
+    if (deletedUsers.length > 0) {
+      await prisma.user.updateMany({
+        where: { role: name },
+        data: { role: 'ADMIN' }
+      });
+    }
+
+    await prisma.$transaction([
+      prisma.rolePermission.deleteMany({ where: { roleName: name } }),
+      prisma.role.delete({ where: { name } })
+    ]);
+    
     res.json({ message: 'Role deleted successfully' });
   } catch (error) {
     console.error('Delete role error:', error);
