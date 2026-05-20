@@ -66,18 +66,28 @@ export const createInquiry = async (req: Request, res: Response) => {
       });
     }
 
-    // Generate Inquiry Number (e.g., INQ-2025-0001)
+    // Generate Inquiry Number (e.g., INQ-2026-0001)
     const year = new Date().getFullYear();
-    const count = await prisma.inquiry.count({
+    const lastInquiry = await prisma.inquiry.findFirst({
       where: {
-        createdAt: {
-          gte: new Date(`${year}-01-01`),
-          lt: new Date(`${year + 1}-01-01`)
-        },
-        deletedAt: null
+        inquiryNumber: {
+          startsWith: `INQ-${year}-`
+        }
+      },
+      orderBy: {
+        inquiryNumber: 'desc'
       }
     });
-    const inquiryNumber = `INQ-${year}-${(count + 1).toString().padStart(4, '0')}`;
+
+    let nextSeq = 1;
+    if (lastInquiry && lastInquiry.inquiryNumber) {
+      const parts = lastInquiry.inquiryNumber.split('-');
+      const lastSeq = parseInt(parts[parts.length - 1], 10);
+      if (!isNaN(lastSeq)) {
+        nextSeq = lastSeq + 1;
+      }
+    }
+    const inquiryNumber = `INQ-${year}-${nextSeq.toString().padStart(4, '0')}`;
 
     const inquiry = await prisma.inquiry.create({
       data: {
