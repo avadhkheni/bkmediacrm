@@ -3,9 +3,9 @@ import { prisma } from '../utils/prisma';
 
 export const getDashboardStats = async (req: Request, res: Response) => {
   try {
-    const totalInquiries = await prisma.inquiry.count();
-    const confirmedInquiries = await prisma.inquiry.count({ where: { status: 'CONFIRMED' } });
-    const pendingInquiries = await prisma.inquiry.count({ where: { status: 'INQUIRY' } });
+    const totalInquiries = await prisma.inquiry.count({ where: { deletedAt: null } });
+    const confirmedInquiries = await prisma.inquiry.count({ where: { status: 'CONFIRMED', deletedAt: null } });
+    const pendingInquiries = await prisma.inquiry.count({ where: { status: 'INQUIRY', deletedAt: null } });
     const totalClients = await prisma.client.count();
     const totalStaff = await prisma.staff.count({ where: { isActive: true } });
 
@@ -20,6 +20,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 
     // Recent inquiries
     const recentInquiries = await prisma.inquiry.findMany({
+      where: { deletedAt: null },
       include: { client: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
       take: 5
@@ -47,9 +48,9 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 
 export const getOverview = async (req: Request, res: Response) => {
   try {
-    const totalInquiries = await prisma.inquiry.count();
+    const totalInquiries = await prisma.inquiry.count({ where: { deletedAt: null } });
     const activeEvents = await prisma.inquiry.count({
-      where: { status: 'IN_PROGRESS' },
+      where: { status: 'IN_PROGRESS', deletedAt: null },
     });
     
     // Quick P&L stats (just basic sums for dashboard)
@@ -87,6 +88,7 @@ export const getUpcomingEvents = async (req: Request, res: Response) => {
           lte: targetDate,
         },
         status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
+        deletedAt: null,
       },
       include: { client: { select: { name: true } } },
       orderBy: { startDate: 'asc' },

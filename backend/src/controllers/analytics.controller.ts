@@ -12,7 +12,7 @@ export const getInquiryStats = async (req: Request, res: Response) => {
   try {
     const { startDate, endDate, status, source, priority, category, venue } = req.query;
 
-    const where: any = {};
+    const where: any = { deletedAt: null };
     if (status) where.status = status as string;
     if (source) where.source = source as string;
     if (priority) where.priority = priority as string;
@@ -65,7 +65,7 @@ export const getChartData = async (req: Request, res: Response) => {
   try {
     const { startDate, endDate, dept, source, priority } = req.query;
 
-    const where: any = {};
+    const where: any = { deletedAt: null };
     if (dept) where.department = dept as string;
     if (source) where.source = source as string;
     if (priority) where.priority = priority as string;
@@ -149,7 +149,7 @@ export const getTopEmployees = async (req: Request, res: Response) => {
     const stats = await prisma.inquiry.groupBy({
       by: ['createdById'],
       _count: { id: true },
-      where: { createdById: { not: null } }
+      where: { createdById: { not: null }, deletedAt: null }
     });
 
     // Fetch user names

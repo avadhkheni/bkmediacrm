@@ -143,7 +143,7 @@ export const getInquiryById = async (req: Request, res: Response) => {
       }
     });
 
-    if (!inquiry) {
+    if (!inquiry || inquiry.deletedAt !== null) {
       return res.status(404).json({ message: 'Inquiry not found' });
     }
 

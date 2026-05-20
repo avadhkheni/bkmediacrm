@@ -17,6 +17,7 @@ export const getStaffAvailabilityController = async (req: Request, res: Response
         assignments: {
           where: {
             inquiry: {
+              deletedAt: null,
               OR: [
                 { startDate: { lte: end }, endDate: { gte: start } }
               ]
@@ -56,6 +57,7 @@ export const getLedAvailabilityController = async (req: Request, res: Response) 
         allocations: {
           where: {
             inquiry: {
+              deletedAt: null,
               OR: [
                 { startDate: { lte: end }, endDate: { gte: start } }
               ]
@@ -96,6 +98,7 @@ export const getVideoEquipmentAvailabilityController = async (req: Request, res:
       include: {
         bookings: {
           where: {
+            inquiry: { deletedAt: null },
             OR: [
               { bookedFrom: { lte: end }, bookedTo: { gte: start } }
             ]
@@ -131,6 +134,7 @@ export const getSoundEquipmentAvailabilityController = async (req: Request, res:
       include: {
         bookings: {
           where: {
+            inquiry: { deletedAt: null },
             OR: [
               { bookedFrom: { lte: end }, bookedTo: { gte: start } }
             ]
@@ -170,6 +174,7 @@ export const getAvailabilitySummaryController = async (req: Request, res: Respon
         assignments: {
           where: {
             inquiry: {
+              deletedAt: null,
               OR: [
                 { startDate: { lte: end }, endDate: { gte: start } }
               ]
@@ -188,6 +193,7 @@ export const getAvailabilitySummaryController = async (req: Request, res: Respon
         allocations: {
           where: {
             inquiry: {
+              deletedAt: null,
               OR: [
                 { startDate: { lte: end }, endDate: { gte: start } }
               ]
@@ -210,6 +216,7 @@ export const getAvailabilitySummaryController = async (req: Request, res: Respon
       include: {
         bookings: {
           where: {
+            inquiry: { deletedAt: null },
             OR: [
               { bookedFrom: { lte: end }, bookedTo: { gte: start } }
             ]
