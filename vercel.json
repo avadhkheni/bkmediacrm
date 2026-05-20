@@ -21,10 +21,6 @@
     {
       "src": "/api/v1/(.*)",
       "dest": "backend/src/server.ts"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "frontend/$1"
     }
   ]
 }
