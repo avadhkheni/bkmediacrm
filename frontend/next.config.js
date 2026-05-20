@@ -6,10 +6,12 @@ const nextConfig = {
     domains: ['localhost', 'res.cloudinary.com'],
   },
   async rewrites() {
-    return process.env.NODE_ENV === 'production' ? [] : [
+    return [
       {
         source: '/api/v1/:path*',
-        destination: 'http://localhost:5001/api/v1/:path*',
+        destination: process.env.NODE_ENV === 'production'
+          ? '/_/backend/api/v1/:path*'
+          : 'http://localhost:5001/api/v1/:path*',
       },
     ];
   },

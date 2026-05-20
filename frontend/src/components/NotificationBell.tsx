@@ -16,8 +16,10 @@ export default function NotificationBell() {
   useEffect(() => {
     fetchNotifications();
 
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") || "http://localhost:5001";
-    const socket = io(socketUrl);
+    const isProd = process.env.NODE_ENV === "production";
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || (isProd ? "/" : "http://localhost:5001");
+    const socketOptions = isProd ? { path: "/_/backend/socket.io" } : undefined;
+    const socket = io(socketUrl, socketOptions);
 
     socket.on("new_notification", (notification) => {
       // Only add if the user's role is in targetRoles
