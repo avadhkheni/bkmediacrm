@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
+import { usePermission } from "@/lib/usePermission";
 import { FileText, CheckCircle2, AlertCircle, IndianRupee, Download } from "lucide-react";
 import { generateInvoicePDF } from "@/lib/pdfGenerator";
 
@@ -25,6 +26,7 @@ interface Invoice {
 
 export default function InvoicesPage() {
   const router = useRouter();
+  const { hasPermission } = usePermission();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -148,21 +150,22 @@ export default function InvoicesPage() {
                     </td>
                     <td className="py-3 px-6 text-sm text-slate-700 dark:text-slate-300">{inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : "-"}</td>
                     <td className="py-3 px-6 text-right">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Ensure we have enough data for the PDF
-                          generateInvoicePDF({
-                            ...inv,
-                            inquiry: inv.inquiry,
-                            quotation: inv.quotation
-                          });
-                        }}
-                        className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
-                        title="Download Invoice PDF"
-                      >
-                        <Download className="w-5 h-5" strokeWidth={1.75} />
-                      </button>
+                      {hasPermission("FINANCE", "canRead") && (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            generateInvoicePDF({
+                              ...inv,
+                              inquiry: inv.inquiry,
+                              quotation: inv.quotation
+                            });
+                          }}
+                          className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+                          title="Download Invoice PDF"
+                        >
+                          <Download className="w-5 h-5" strokeWidth={1.75} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))

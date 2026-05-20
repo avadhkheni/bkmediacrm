@@ -22,6 +22,7 @@ import {
   ToggleLeft,
   ToggleRight
 } from "lucide-react";
+import { usePermission } from "@/lib/usePermission";
 
 interface Permission {
   id?: number;
@@ -66,6 +67,7 @@ const formatModuleName = (name: string) => {
 
 export default function RolesPage() {
   const { addToast } = useUIStore();
+  const { hasPermission } = usePermission();
   const [roles, setRoles] = useState<Role[]>([]);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(true);
@@ -374,13 +376,15 @@ export default function RolesPage() {
           </p>
         </div>
         
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-3 rounded-2xl flex items-center gap-2 shadow-lg shadow-blue-500/10 hover:scale-[1.02] active:scale-[0.98] transition-all"
-        >
-          <Plus className="w-5 h-5" />
-          Create Custom Role
-        </button>
+        {hasPermission("STAFF", "canCreate") && (
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-3 rounded-2xl flex items-center gap-2 shadow-lg shadow-blue-500/10 hover:scale-[1.02] active:scale-[0.98] transition-all"
+          >
+            <Plus className="w-5 h-5" />
+            Create Custom Role
+          </button>
+        )}
       </div>
 
       {/* Tab Switcher */}
@@ -518,14 +522,16 @@ export default function RolesPage() {
                 </select>
               </div>
 
-              <button
-                type="submit"
-                disabled={creatingUser}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-blue-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm mt-2"
-              >
-                <UserPlus className="w-4 h-4" />
-                {creatingUser ? "Creating Account..." : "Create Account"}
-              </button>
+              {hasPermission("STAFF", "canCreate") && (
+                <button
+                  type="submit"
+                  disabled={creatingUser}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-blue-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm mt-2"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  {creatingUser ? "Creating Account..." : "Create Account"}
+                </button>
+              )}
             </form>
           </div>
 
@@ -596,36 +602,40 @@ export default function RolesPage() {
 
                         {/* Status Switch */}
                         <td className="p-4 text-center">
-                          <button
-                            onClick={() => handleToggleUserStatus(userItem.id, userItem.isActive)}
-                            disabled={userItem.role === 'ADMIN'}
-                            className={`p-1 rounded-lg transition-colors ${
-                              userItem.role === 'ADMIN'
-                                ? 'opacity-40 cursor-not-allowed text-green-500'
-                                : userItem.isActive 
-                                ? 'text-green-500 hover:text-green-600' 
-                                : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'
-                            }`}
-                            title={userItem.isActive ? "Deactivate Account" : "Activate Account"}
-                          >
-                            {userItem.isActive ? (
-                              <ToggleRight className="w-8 h-8" />
-                            ) : (
-                              <ToggleLeft className="w-8 h-8" />
-                            )}
-                          </button>
+                          {hasPermission("STAFF", "canUpdate") && (
+                            <button
+                              onClick={() => handleToggleUserStatus(userItem.id, userItem.isActive)}
+                              disabled={userItem.role === 'ADMIN'}
+                              className={`p-1 rounded-lg transition-colors ${
+                                userItem.role === 'ADMIN'
+                                  ? 'opacity-40 cursor-not-allowed text-green-500'
+                                  : userItem.isActive 
+                                  ? 'text-green-500 hover:text-green-600' 
+                                  : 'text-slate-300 dark:text-slate-600 hover:text-slate-500'
+                              }`}
+                              title={userItem.isActive ? "Deactivate Account" : "Activate Account"}
+                            >
+                              {userItem.isActive ? (
+                                <ToggleRight className="w-8 h-8" />
+                              ) : (
+                                <ToggleLeft className="w-8 h-8" />
+                              )}
+                            </button>
+                          )}
                         </td>
 
                         {/* Delete User Login */}
                         <td className="p-4 text-center">
-                          <button
-                            onClick={() => handleDeleteUser(userItem.id)}
-                            disabled={userItem.role === 'ADMIN'}
-                            className="text-slate-400 hover:text-red-500 dark:hover:text-red-400 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900/50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                            title="Delete User Account"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {hasPermission("STAFF", "canDelete") && (
+                            <button
+                              onClick={() => handleDeleteUser(userItem.id)}
+                              disabled={userItem.role === 'ADMIN'}
+                              className="text-slate-400 hover:text-red-500 dark:hover:text-red-400 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900/50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Delete User Account"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -695,21 +705,25 @@ export default function RolesPage() {
 
                   {selectedRole.name !== "ADMIN" && (
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleDeleteRole(selectedRole.name)}
-                        className="text-red-500 hover:text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 p-2.5 rounded-xl border border-transparent hover:border-red-200 dark:hover:border-red-900/30 transition-all"
-                        title="Delete Role"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={handleSavePermissions}
-                        disabled={saving}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2.5 rounded-xl shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 text-sm disabled:opacity-50"
-                      >
-                        <Save className="w-4 h-4" />
-                        {saving ? "Saving..." : "Save Matrix"}
-                      </button>
+                      {hasPermission("STAFF", "canDelete") && (
+                        <button
+                          onClick={() => handleDeleteRole(selectedRole.name)}
+                          className="text-red-500 hover:text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 p-2.5 rounded-xl border border-transparent hover:border-red-200 dark:hover:border-red-900/30 transition-all"
+                          title="Delete Role"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      )}
+                      {hasPermission("STAFF", "canUpdate") && (
+                        <button
+                          onClick={handleSavePermissions}
+                          disabled={saving}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2.5 rounded-xl shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 text-sm disabled:opacity-50"
+                        >
+                          <Save className="w-4 h-4" />
+                          {saving ? "Saving..." : "Save Matrix"}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -849,12 +863,14 @@ export default function RolesPage() {
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md text-sm hover:scale-[1.02] active:scale-[0.98] transition-all"
-                >
-                  Create Role
-                </button>
+                {hasPermission("STAFF", "canCreate") && (
+                  <button
+                    type="submit"
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md text-sm hover:scale-[1.02] active:scale-[0.98] transition-all"
+                  >
+                    Create Role
+                  </button>
+                )}
               </div>
             </form>
           </div>

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { exportToCSV } from "@/lib/exportUtils";
 import { generateInquiryReportPDF } from "@/lib/pdfGenerator";
+import { usePermission } from "@/lib/usePermission";
 
 import ClientReport from './components/ClientReport';
 import AvailabilityReport from './components/AvailabilityReport';
@@ -38,6 +39,7 @@ const REPORT_TABS = [
 
 // ─── INQUIRY REPORT (original, preserved) ────────────────
 function InquiryReport() {
+  const { hasPermission } = usePermission();
   const [stats, setStats] = useState<any>(null);
   const [charts, setCharts] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -150,12 +152,16 @@ function InquiryReport() {
 
       {/* Export */}
       <div className="flex justify-end gap-3">
-        <button onClick={handleExportCSV} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-all flex items-center gap-2">
-          <Download className="w-4 h-4" strokeWidth={1.75} /> Export CSV
-        </button>
-        <button onClick={handleExportPDF} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-200 dark:shadow-none">
-          <FileDown className="w-4 h-4" strokeWidth={1.75} /> Export PDF
-        </button>
+        {hasPermission("FINANCE", "canRead") && (
+          <button onClick={handleExportCSV} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-all flex items-center gap-2">
+            <Download className="w-4 h-4" strokeWidth={1.75} /> Export CSV
+          </button>
+        )}
+        {hasPermission("FINANCE", "canRead") && (
+          <button onClick={handleExportPDF} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-200 dark:shadow-none">
+            <FileDown className="w-4 h-4" strokeWidth={1.75} /> Export PDF
+          </button>
+        )}
       </div>
 
       {/* Summary Cards */}

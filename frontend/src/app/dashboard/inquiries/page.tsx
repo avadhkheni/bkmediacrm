@@ -6,6 +6,7 @@ import api from "@/lib/api";
 import { Trash2, Eye, Download, Loader2, Filter } from "lucide-react";
 import { generateInquiryPDF } from "@/lib/pdfGenerator";
 import PageSkeleton from "@/components/PageSkeleton";
+import { usePermission } from "@/lib/usePermission";
 
 interface Inquiry {
   id: number;
@@ -106,6 +107,7 @@ export default function InquiriesPage() {
   });
 
   const hasActiveFilters = searchTerm || selectedDept !== "ALL" || selectedStatus !== "ALL" || startDate || endDate;
+  const { hasPermission } = usePermission();
 
   if (loading) return <PageSkeleton variant="table" />;
 
@@ -128,12 +130,14 @@ export default function InquiriesPage() {
               <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-blue-600 dark:bg-blue-400 border-2 border-white dark:border-slate-800 animate-pulse"></span>
             )}
           </button>
-          <Link 
-            href="/dashboard/inquiries/new" 
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-bold transition-all shadow-md active:scale-95 flex items-center gap-1 text-sm"
-          >
-            + New Inquiry
-          </Link>
+          {hasPermission("INQUIRIES", "canCreate") && (
+            <Link 
+              href="/dashboard/inquiries/new" 
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-bold transition-all shadow-md active:scale-95 flex items-center gap-1 text-sm"
+            >
+              + New Inquiry
+            </Link>
+          )}
         </div>
       </div>
 
@@ -275,32 +279,38 @@ export default function InquiriesPage() {
                     </td>
                     <td className="py-4 px-6 text-sm text-right">
                       <div className="flex justify-end gap-2">
-                        <Link 
-                          href={`/dashboard/inquiries/details?id=${inq.id}`} 
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all"
-                          title="View Details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Link>
-                        <button 
-                          onClick={() => handleDownloadPDF(inq.id)}
-                          disabled={downloadingId !== null}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-all disabled:opacity-50"
-                          title="Download PDF"
-                        >
-                          {downloadingId === inq.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Download className="w-4 h-4" />
-                          )}
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(inq.id)}
-                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {hasPermission("INQUIRIES", "canRead") && (
+                          <Link 
+                            href={`/dashboard/inquiries/details?id=${inq.id}`} 
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all"
+                            title="View Details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Link>
+                        )}
+                        {hasPermission("INQUIRIES", "canRead") && (
+                          <button 
+                            onClick={() => handleDownloadPDF(inq.id)}
+                            disabled={downloadingId !== null}
+                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-all disabled:opacity-50"
+                            title="Download PDF"
+                          >
+                            {downloadingId === inq.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Download className="w-4 h-4" />
+                            )}
+                          </button>
+                        )}
+                        {hasPermission("INQUIRIES", "canDelete") && (
+                          <button 
+                            onClick={() => handleDelete(inq.id)}
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
+import { usePermission } from "@/lib/usePermission";
 import { Plus, Pencil, Trash2, Users } from "lucide-react";
 
 interface LedStock {
@@ -23,6 +24,7 @@ interface LedStock {
 
 export default function LedDepartmentPage() {
   const router = useRouter();
+  const { hasPermission } = usePermission();
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.location.pathname === "/dashboard/led") {
@@ -130,12 +132,14 @@ export default function LedDepartmentPage() {
               <h3 className="font-bold text-slate-800 dark:text-white">LED Inventory</h3>
               <p className="text-xs text-slate-500 mt-1">Manage your warehouse stock</p>
             </div>
-            <button 
-              onClick={() => router.push('/dashboard/led/new')}
-              className="bg-blue-600 dark:bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-sm flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" /> Add LED Stock
-            </button>
+            {hasPermission("WORK_TEAMS", "canCreate") && (
+              <button 
+                onClick={() => router.push('/dashboard/led/new')}
+                className="bg-blue-600 dark:bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-sm flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" /> Add LED Stock
+              </button>
+            )}
           </div>
           
           <div className="overflow-x-auto">
@@ -191,18 +195,22 @@ export default function LedDepartmentPage() {
                       </td>
                       <td className="py-4 px-6 text-right">
                         <div className="flex justify-end gap-2">
-                          <button 
-                            onClick={() => router.push(`/dashboard/led/new?id=${item.id}`)}
-                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(item.id)}
-                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {hasPermission("WORK_TEAMS", "canUpdate") && (
+                            <button 
+                              onClick={() => router.push(`/dashboard/led/new?id=${item.id}`)}
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                          )}
+                          {hasPermission("WORK_TEAMS", "canDelete") && (
+                            <button 
+                              onClick={() => handleDelete(item.id)}
+                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

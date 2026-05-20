@@ -32,6 +32,7 @@ import {
   FileText,
   Download
 } from "lucide-react";
+import { usePermission } from "@/lib/usePermission";
 
 interface VendorProduct {
   id: number;
@@ -90,6 +91,7 @@ export default function VendorsMasterPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDept, setSelectedDept] = useState<"ALL" | "VIDEO" | "LED" | "SOUND">("ALL");
   const [expandedVendorId, setExpandedVendorId] = useState<number | null>(null);
+  const { hasPermission } = usePermission();
 
   // Tab System
   const [activeTab, setActiveTab] = useState<"directory" | "rentals">("directory");
@@ -529,55 +531,61 @@ export default function VendorsMasterPage() {
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            disabled={downloadingPdf}
-            onClick={handleDownloadPdf}
-            className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-900/60 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-2 transition-all border border-slate-200 dark:border-slate-800 active:scale-95 disabled:opacity-50"
-          >
-            {downloadingPdf ? (
-              <Loader2 className="w-5 h-5 animate-spin text-blue-600 dark:text-blue-500" />
-            ) : (
-              <FileText className="w-5 h-5 text-blue-600 dark:text-blue-500" />
-            )}
-            {downloadingPdf ? "Generating PDF..." : "Export PDF Report"}
-          </button>
+          {hasPermission("WAREHOUSE", "canRead") && (
+            <button
+              disabled={downloadingPdf}
+              onClick={handleDownloadPdf}
+              className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-900/60 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 px-5 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-2 transition-all border border-slate-200 dark:border-slate-800 active:scale-95 disabled:opacity-50"
+            >
+              {downloadingPdf ? (
+                <Loader2 className="w-5 h-5 animate-spin text-blue-600 dark:text-blue-500" />
+              ) : (
+                <FileText className="w-5 h-5 text-blue-600 dark:text-blue-500" />
+              )}
+              {downloadingPdf ? "Generating PDF..." : "Export PDF Report"}
+            </button>
+          )}
 
           {activeTab === "directory" ? (
-            <button
-              onClick={() => {
-                setEditingVendorId(null);
-                setVendorFormData({ name: "", phone: "", email: "", specialization: "", address: "", gstNumber: "", department: "VIDEO" });
-                setShowVendorModal(true);
-              }}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20 active:scale-95"
-            >
-              <Plus className="w-5 h-5" /> Add New Vendor
-            </button>
+            hasPermission("WAREHOUSE", "canCreate") && (
+              <button
+                onClick={() => {
+                  setEditingVendorId(null);
+                  setVendorFormData({ name: "", phone: "", email: "", specialization: "", address: "", gstNumber: "", department: "VIDEO" });
+                  setShowVendorModal(true);
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+              >
+                <Plus className="w-5 h-5" /> Add New Vendor
+              </button>
+            )
           ) : (
-            <button
-              onClick={() => {
-                setEditingRentalId(null);
-                setRentalFormData({
-                  vendorId: "",
-                  itemName: "",
-                  quantity: "1",
-                  pricePerDay: "",
-                  totalCost: "",
-                  inquiryId: "",
-                  rentedDate: new Date().toISOString().split("T")[0],
-                  endDate: "",
-                  notes: "",
-                  status: "RENTED",
-                  returnedFromEventDate: "",
-                  returnedToVendorDate: ""
-                });
-                setRentalItems([{ itemName: "", quantity: "1", pricePerDay: "", totalCost: "" }]);
-                setShowRentalModal(true);
-              }}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20 active:scale-95"
-            >
-              <Plus className="w-5 h-5" /> Log Outside Rental
-            </button>
+            hasPermission("WAREHOUSE", "canCreate") && (
+              <button
+                onClick={() => {
+                  setEditingRentalId(null);
+                  setRentalFormData({
+                    vendorId: "",
+                    itemName: "",
+                    quantity: "1",
+                    pricePerDay: "",
+                    totalCost: "",
+                    inquiryId: "",
+                    rentedDate: new Date().toISOString().split("T")[0],
+                    endDate: "",
+                    notes: "",
+                    status: "RENTED",
+                    returnedFromEventDate: "",
+                    returnedToVendorDate: ""
+                  });
+                  setRentalItems([{ itemName: "", quantity: "1", pricePerDay: "", totalCost: "" }]);
+                  setShowRentalModal(true);
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3.5 rounded-2xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+              >
+                <Plus className="w-5 h-5" /> Log Outside Rental
+              </button>
+            )
           )}
         </div>
       </div>
@@ -765,20 +773,24 @@ export default function VendorsMasterPage() {
                             </td>
                             <td className="py-4 px-6 text-right" onClick={(e) => e.stopPropagation()}>
                               <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                  onClick={() => handleVendorEdit(vendor)}
-                                  className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all"
-                                  title="Edit Profile"
-                                >
-                                  <Pencil className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleVendorDelete(vendor.id)}
-                                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all"
-                                  title="Delete Vendor"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+                                {hasPermission("WAREHOUSE", "canUpdate") && (
+                                  <button
+                                    onClick={() => handleVendorEdit(vendor)}
+                                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all"
+                                    title="Edit Profile"
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                  </button>
+                                )}
+                                {hasPermission("WAREHOUSE", "canDelete") && (
+                                  <button
+                                    onClick={() => handleVendorDelete(vendor.id)}
+                                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all"
+                                    title="Delete Vendor"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -794,17 +806,19 @@ export default function VendorsMasterPage() {
                                       </h4>
                                       <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Register items available from this vendor to rent inside Quotation and Rental orders.</p>
                                     </div>
-                                    <button
-                                      onClick={() => {
-                                        setSelectedVendorForProduct(vendor);
-                                        setEditingProductId(null);
-                                        setProductFormData({ name: "", category: vendor.department ? vendor.department.split(",")[0] : "VIDEO", quantity: "1", ratePerDay: "" });
-                                        setShowProductModal(true);
-                                      }}
-                                      className="text-xs bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-700 dark:hover:bg-slate-600 px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 transition-all shadow-sm shadow-black/10"
-                                    >
-                                      <PlusCircle className="w-4 h-4" /> Add Rental Item
-                                    </button>
+                                    {hasPermission("WAREHOUSE", "canCreate") && (
+                                      <button
+                                        onClick={() => {
+                                          setSelectedVendorForProduct(vendor);
+                                          setEditingProductId(null);
+                                          setProductFormData({ name: "", category: vendor.department ? vendor.department.split(",")[0] : "VIDEO", quantity: "1", ratePerDay: "" });
+                                          setShowProductModal(true);
+                                        }}
+                                        className="text-xs bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-700 dark:hover:bg-slate-600 px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 transition-all shadow-sm shadow-black/10"
+                                      >
+                                        <PlusCircle className="w-4 h-4" /> Add Rental Item
+                                      </button>
+                                    )}
                                   </div>
 
                                   {(!vendor.products || vendor.products.length === 0) ? (
@@ -830,18 +844,22 @@ export default function VendorsMasterPage() {
                                             </div>
                                           </div>
                                           <div className="flex items-center gap-1 opacity-0 group-hover/prod:opacity-100 transition-opacity">
-                                            <button
-                                              onClick={() => handleProductEdit(vendor, prod)}
-                                              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all"
-                                            >
-                                              <Pencil className="w-3.5 h-3.5" />
-                                            </button>
-                                            <button
-                                              onClick={() => handleProductDelete(prod.id)}
-                                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
-                                            >
-                                              <Trash2 className="w-3.5 h-3.5" />
-                                            </button>
+                                            {hasPermission("WAREHOUSE", "canUpdate") && (
+                                              <button
+                                                onClick={() => handleProductEdit(vendor, prod)}
+                                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all"
+                                              >
+                                                <Pencil className="w-3.5 h-3.5" />
+                                              </button>
+                                            )}
+                                            {hasPermission("WAREHOUSE", "canDelete") && (
+                                              <button
+                                                onClick={() => handleProductDelete(prod.id)}
+                                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
+                                              >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                              </button>
+                                            )}
                                           </div>
                                         </div>
                                       ))}
@@ -988,12 +1006,14 @@ export default function VendorsMasterPage() {
                               <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-2 py-0.5 rounded-lg block w-fit border border-amber-200/20">
                                 Expected: {rental.inquiry ? new Date(rental.inquiry.endDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "N/A"}
                               </span>
-                              <button
-                                onClick={() => handleMarkReturnedFromEvent(rental)}
-                                className="text-[10px] font-bold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-lg border border-blue-200/30 hover:border-blue-300 transition-all block text-center"
-                              >
-                                Mark Returned
-                              </button>
+                              {hasPermission("WAREHOUSE", "canUpdate") && (
+                                <button
+                                  onClick={() => handleMarkReturnedFromEvent(rental)}
+                                  className="text-[10px] font-bold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-lg border border-blue-200/30 hover:border-blue-300 transition-all block text-center"
+                                >
+                                  Mark Returned
+                                </button>
+                              )}
                             </div>
                           )}
                         </td>
@@ -1008,44 +1028,52 @@ export default function VendorsMasterPage() {
                               <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900/60 px-2 py-0.5 rounded-lg block w-fit border border-slate-200/20">
                                 {rental.returnedFromEventDate ? "At Warehouse" : "Awaiting Dispatch"}
                               </span>
-                              <button
-                                onClick={() => handleMarkReturnedToVendor(rental)}
-                                disabled={!rental.returnedFromEventDate}
-                                className="text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 disabled:hover:bg-emerald-600 px-2 py-1 rounded-lg transition-all block text-center shadow-sm shadow-emerald-500/10 active:scale-95"
-                              >
-                                Send to Vendor
-                              </button>
+                              {hasPermission("WAREHOUSE", "canUpdate") && (
+                                <button
+                                  onClick={() => handleMarkReturnedToVendor(rental)}
+                                  disabled={!rental.returnedFromEventDate}
+                                  className="text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40 disabled:hover:bg-emerald-600 px-2 py-1 rounded-lg transition-all block text-center shadow-sm shadow-emerald-500/10 active:scale-95"
+                                >
+                                  Send to Vendor
+                                </button>
+                              )}
                             </div>
                           )}
                         </td>
                         <td className="py-4 px-6 text-right">
                           <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => handleDownloadIndividualRentalPdf(rental.id)}
-                              disabled={downloadingRentalId === rental.id}
-                              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-xl transition-all disabled:opacity-50"
-                              title="Download Rental Challan"
-                            >
-                              {downloadingRentalId === rental.id ? (
-                                <span className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin inline-block" />
-                              ) : (
-                                <Download className="w-4 h-4" />
-                              )}
-                            </button>
-                            <button
-                              onClick={() => handleRentalEdit(rental)}
-                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all"
-                              title="Edit Rental Details"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleRentalDelete(rental.id)}
-                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all"
-                              title="Delete Rental Record"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {hasPermission("WAREHOUSE", "canRead") && (
+                              <button
+                                onClick={() => handleDownloadIndividualRentalPdf(rental.id)}
+                                disabled={downloadingRentalId === rental.id}
+                                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-xl transition-all disabled:opacity-50"
+                                title="Download Rental Challan"
+                              >
+                                {downloadingRentalId === rental.id ? (
+                                  <span className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin inline-block" />
+                                ) : (
+                                  <Download className="w-4 h-4" />
+                                )}
+                              </button>
+                            )}
+                            {hasPermission("WAREHOUSE", "canUpdate") && (
+                              <button
+                                onClick={() => handleRentalEdit(rental)}
+                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all"
+                                title="Edit Rental Details"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                            )}
+                            {hasPermission("WAREHOUSE", "canDelete") && (
+                              <button
+                                onClick={() => handleRentalDelete(rental.id)}
+                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all"
+                                title="Delete Rental Record"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
+import { usePermission } from "@/lib/usePermission";
 import { 
   Camera, 
   Aperture, 
@@ -40,6 +41,7 @@ interface VideoEquipment {
 
 export default function VideoDepartmentPage() {
   const router = useRouter();
+  const { hasPermission } = usePermission();
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.location.pathname === "/dashboard/video") {
@@ -235,12 +237,14 @@ export default function VideoDepartmentPage() {
     <div className="space-y-6 transition-colors">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Video Team Dashboard</h2>
-        <button
-          onClick={handleAddClick}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
-        >
-          <Plus className="w-4 h-4" /> Add Equipment
-        </button>
+        {hasPermission("WORK_TEAMS", "canCreate") && (
+          <button
+            onClick={handleAddClick}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
+          >
+            <Plus className="w-4 h-4" /> Add Equipment
+          </button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -343,18 +347,22 @@ export default function VideoDepartmentPage() {
                       </td>
                       <td className="py-4 px-6 text-right">
                         <div className="flex justify-end gap-2">
-                          <button 
-                            onClick={() => handleEditClick(item)}
-                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(item.id)}
-                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {hasPermission("WORK_TEAMS", "canUpdate") && (
+                            <button 
+                              onClick={() => handleEditClick(item)}
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                          )}
+                          {hasPermission("WORK_TEAMS", "canDelete") && (
+                            <button 
+                              onClick={() => handleDelete(item.id)}
+                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

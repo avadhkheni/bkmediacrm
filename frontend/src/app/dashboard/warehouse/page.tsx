@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { Plus, X, Search, Warehouse, Pencil, Trash2, ArrowRight } from "lucide-react";
 import { useUIStore } from "@/store/uiStore";
+import { usePermission } from "@/lib/usePermission";
 
 interface WarehouseItem {
   id: number;
@@ -22,6 +23,7 @@ interface WarehouseItem {
 export default function WarehousePage() {
   const router = useRouter();
   const { addToast, showConfirm } = useUIStore();
+  const { hasPermission } = usePermission();
   const [warehouses, setWarehouses] = useState<WarehouseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -117,12 +119,14 @@ export default function WarehousePage() {
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage physical locations and track overall inventory distribution.</p>
         </div>
-        <button 
-          onClick={handleAddClick}
-          className="bg-blue-600 text-white font-bold py-2.5 px-5 rounded-xl hover:bg-blue-700 transition-all shadow-sm flex items-center gap-2 text-sm"
-        >
-          <Plus className="w-5 h-5" /> Add Warehouse
-        </button>
+        {hasPermission("WAREHOUSE", "canCreate") && (
+          <button 
+            onClick={handleAddClick}
+            className="bg-blue-600 text-white font-bold py-2.5 px-5 rounded-xl hover:bg-blue-700 transition-all shadow-sm flex items-center gap-2 text-sm"
+          >
+            <Plus className="w-5 h-5" /> Add Warehouse
+          </button>
+        )}
       </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col">
@@ -202,20 +206,24 @@ export default function WarehousePage() {
                         >
                           <ArrowRight className="w-4 h-4" />
                         </button>
-                        <button 
-                          onClick={() => handleEdit(item)}
-                          className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm"
-                          title="Edit Warehouse"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(item.id)}
-                          className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm"
-                          title="Delete Warehouse"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {hasPermission("WAREHOUSE", "canUpdate") && (
+                          <button 
+                            onClick={() => handleEdit(item)}
+                            className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm"
+                            title="Edit Warehouse"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
+                        {hasPermission("WAREHOUSE", "canDelete") && (
+                          <button 
+                            onClick={() => handleDelete(item.id)}
+                            className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm"
+                            title="Delete Warehouse"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

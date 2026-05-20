@@ -26,6 +26,7 @@ import {
   DollarSign,
   ClipboardList
 } from "lucide-react";
+import { usePermission } from "@/lib/usePermission";
 import { generateInquiryPDF, generateQuotationPDF, generateInvoicePDF } from "@/lib/pdfGenerator";
 import { isQuotationLocked } from "@/lib/quotation";
 import {
@@ -48,6 +49,7 @@ function InquiryDetailsContent() {
   const [showDeclineModal, setShowDeclineModal] = useState(false);
   const [selectedQuotation, setSelectedQuotation] = useState<any>(null);
   const [declineReason, setDeclineReason] = useState("");
+  const { hasPermission } = usePermission();
 
   useEffect(() => {
     if (!id) return;
@@ -267,36 +269,44 @@ function InquiryDetailsContent() {
         <div>
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{inquiry.inquiryNumber || `INQ-${inquiry.id}`}</h2>
-            <select
-              value={inquiry.status}
-              onChange={async (e) => {
-                const newStatus = e.target.value;
-                try {
-                  await api.put(`/inquiries/${id}/status`, { status: newStatus });
-                  setInquiry({ ...inquiry, status: newStatus });
-                } catch (error) {
-                  alert('Failed to update status');
-                }
-              }}
-              className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wide cursor-pointer transition-all outline-none bg-transparent ${getStatusBadge(inquiry.status)}`}
-            >
-              <option value="INQUIRY" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">INQUIRY</option>
-              <option value="CONFIRMED" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">CONFIRMED</option>
-              <option value="IN_PROGRESS" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">IN PROGRESS</option>
-              <option value="COMPLETED" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">COMPLETED</option>
-              <option value="CANCELLED" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">CANCELLED</option>
-            </select>
+            {hasPermission("INQUIRIES", "canUpdate") ? (
+              <select
+                value={inquiry.status}
+                onChange={async (e) => {
+                  const newStatus = e.target.value;
+                  try {
+                    await api.put(`/inquiries/${id}/status`, { status: newStatus });
+                    setInquiry({ ...inquiry, status: newStatus });
+                  } catch (error) {
+                    alert('Failed to update status');
+                  }
+                }}
+                className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wide cursor-pointer transition-all outline-none bg-transparent ${getStatusBadge(inquiry.status)}`}
+              >
+                <option value="INQUIRY" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">INQUIRY</option>
+                <option value="CONFIRMED" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">CONFIRMED</option>
+                <option value="IN_PROGRESS" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">IN PROGRESS</option>
+                <option value="COMPLETED" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">COMPLETED</option>
+                <option value="CANCELLED" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">CANCELLED</option>
+              </select>
+            ) : (
+              <span className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wide ${getStatusBadge(inquiry.status)}`}>
+                {inquiry.status.replace('_', ' ')}
+              </span>
+            )}
           </div>
           <p className="text-gray-500 dark:text-slate-400 text-sm mt-1">{inquiry.eventName}</p>
         </div>
-        <div className="ml-auto">
-          <button 
-            onClick={() => generateInquiryPDF(inquiry)}
-            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm"
-          >
-            <Download className="w-4 h-4" /> Download PDF
-          </button>
-        </div>
+        {hasPermission("INQUIRIES", "canRead") && (
+          <div className="ml-auto">
+            <button 
+              onClick={() => generateInquiryPDF(inquiry)}
+              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm"
+            >
+              <Download className="w-4 h-4" /> Download PDF
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -430,13 +440,15 @@ function InquiryDetailsContent() {
                     </button>
                   </div>
                 </div>
-                <button 
-                  onClick={() => router.push(`/dashboard/inquiries/details/quotation/new?id=${id}`)}
-                  className="bg-blue-600 dark:bg-blue-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 dark:hover:bg-blue-600 transition-all shadow-sm flex items-center gap-2"
-                >
-                  <FilePlus className="w-4 h-4" strokeWidth={1.75} />
-                  Generate Quotation
-                </button>
+                {hasPermission("INQUIRIES", "canCreate") && (
+                  <button 
+                    onClick={() => router.push(`/dashboard/inquiries/details/quotation/new?id=${id}`)}
+                    className="bg-blue-600 dark:bg-blue-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 dark:hover:bg-blue-600 transition-all shadow-sm flex items-center gap-2"
+                  >
+                    <FilePlus className="w-4 h-4" strokeWidth={1.75} />
+                    Generate Quotation
+                  </button>
+                )}
               </div>
               
               {inquiry.quotations?.length === 0 ? (
@@ -477,7 +489,7 @@ function InquiryDetailsContent() {
                           }`}>{q.status}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          {q.status !== 'REVISED' && !isQuotationLocked(q) && (
+                          {q.status !== 'REVISED' && !isQuotationLocked(q) && hasPermission("INQUIRIES", "canUpdate") && (
                             <button 
                               onClick={() => router.push(`/dashboard/inquiries/details/quotation/edit?id=${id}&quotationId=${q.id}`)}
                               className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
@@ -495,14 +507,16 @@ function InquiryDetailsContent() {
                               <FileText className="w-5 h-5" strokeWidth={1.75} />
                             </button>
                           )}
-                          <button 
-                            onClick={() => generateQuotationPDF(q, inquiry)}
-                            className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
-                            title="Download Quotation PDF"
-                          >
-                            <Download className="w-5 h-5" strokeWidth={1.75} />
-                          </button>
-                          {q.status !== 'REJECTED' && q.status !== 'REVISED' && !isQuotationLocked(q) && (
+                          {hasPermission("INQUIRIES", "canRead") && (
+                            <button 
+                              onClick={() => generateQuotationPDF(q, inquiry)}
+                              className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+                              title="Download Quotation PDF"
+                            >
+                              <Download className="w-5 h-5" strokeWidth={1.75} />
+                            </button>
+                          )}
+                          {q.status !== 'REJECTED' && q.status !== 'REVISED' && !isQuotationLocked(q) && hasPermission("INQUIRIES", "canUpdate") && (
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -515,7 +529,7 @@ function InquiryDetailsContent() {
                               <X className="w-5 h-5" strokeWidth={1.75} />
                             </button>
                           )}
-                          {q.status !== 'APPROVED' && q.status !== 'REVISED' && !isQuotationLocked(q) && (
+                          {q.status !== 'APPROVED' && q.status !== 'REVISED' && !isQuotationLocked(q) && hasPermission("INQUIRIES", "canUpdate") && (
                             <button 
                               onClick={async (e) => {
                                 e.stopPropagation();
@@ -534,7 +548,7 @@ function InquiryDetailsContent() {
                               <CheckCircle2 className="w-5 h-5" strokeWidth={1.75} />
                             </button>
                           )}
-                          {q.status !== 'APPROVED' && q.status !== 'REVISED' && !isQuotationLocked(q) && (
+                          {q.status !== 'APPROVED' && q.status !== 'REVISED' && !isQuotationLocked(q) && hasPermission("INQUIRIES", "canDelete") && (
                             <button 
                               onClick={async (e) => {
                                 e.stopPropagation();
@@ -555,7 +569,7 @@ function InquiryDetailsContent() {
                               <Trash2 className="w-5 h-5" strokeWidth={1.75} />
                             </button>
                           )}
-                          {q.status === 'APPROVED' && !q.invoice && !isQuotationLocked(q) && (
+                          {q.status === 'APPROVED' && !q.invoice && !isQuotationLocked(q) && hasPermission("FINANCE", "canCreate") && (
                             <button 
                               onClick={() => handleCreateInvoice(q)}
                               className="bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-orange-100 transition-colors flex items-center gap-1 shadow-sm"

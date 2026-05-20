@@ -21,10 +21,12 @@ import {
   Search
 } from "lucide-react";
 import Link from "next/link";
+import { usePermission } from "@/lib/usePermission";
 
 function ClientDetailsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { hasPermission } = usePermission();
   const id = searchParams.get("id");
   const [client, setClient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -68,12 +70,14 @@ function ClientDetailsContent() {
         </div>
         
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => generateClientProfilePDF(client)}
-            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm"
-          >
-            <Download className="w-4 h-4" /> Download Profile
-          </button>
+          {hasPermission("CLIENTS", "canRead") && (
+            <button 
+              onClick={() => generateClientProfilePDF(client)}
+              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm"
+            >
+              <Download className="w-4 h-4" /> Download Profile
+            </button>
+          )}
         </div>
       </div>
 
@@ -158,9 +162,11 @@ function ClientDetailsContent() {
           <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm">
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recent Inquiries</h3>
-              <Link href={`/dashboard/inquiries/new?clientId=${client.id}`} className="text-sm font-bold text-blue-600 hover:text-blue-700">
-                + New Inquiry
-              </Link>
+              {hasPermission("INQUIRIES", "canCreate") && (
+                <Link href={`/dashboard/inquiries/new?clientId=${client.id}`} className="text-sm font-bold text-blue-600 hover:text-blue-700">
+                  + New Inquiry
+                </Link>
+              )}
             </div>
 
             <div className="space-y-4">

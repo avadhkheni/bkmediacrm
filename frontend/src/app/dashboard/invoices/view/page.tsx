@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useUIStore } from "@/store/uiStore";
 import { generateInvoicePDF } from "@/lib/pdfGenerator";
+import { usePermission } from "@/lib/usePermission";
 
 interface InvoiceDetail {
   id: number;
@@ -54,6 +55,7 @@ export default function InvoiceDetailPage() {
   const router = useRouter();
   const id = searchParams.get("id");
   const { addToast } = useUIStore();
+  const { hasPermission } = usePermission();
 
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -140,19 +142,23 @@ export default function InvoiceDetailPage() {
           </div>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
-          <button 
-            onClick={() => generateInvoicePDF(invoice)}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm"
-          >
-            <Download className="w-4 h-4" /> Download PDF
-          </button>
-          <button 
-            onClick={() => setShowPaymentModal(true)}
-            disabled={invoice.status === 'PAID'}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-md shadow-blue-200 dark:shadow-none disabled:opacity-50"
-          >
-            <Plus className="w-4 h-4" /> Record Payment
-          </button>
+          {hasPermission("FINANCE", "canRead") && (
+            <button 
+              onClick={() => generateInvoicePDF(invoice)}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm"
+            >
+              <Download className="w-4 h-4" /> Download PDF
+            </button>
+          )}
+          {hasPermission("FINANCE", "canUpdate") && (
+            <button 
+              onClick={() => setShowPaymentModal(true)}
+              disabled={invoice.status === 'PAID'}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-md shadow-blue-200 dark:shadow-none disabled:opacity-50"
+            >
+              <Plus className="w-4 h-4" /> Record Payment
+            </button>
+          )}
         </div>
       </div>
 

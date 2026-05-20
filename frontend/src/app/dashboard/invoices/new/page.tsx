@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/lib/api";
+import { usePermission } from "@/lib/usePermission";
 import PageSkeleton from "@/components/PageSkeleton";
 import { 
   ChevronLeft, 
@@ -18,6 +19,7 @@ import {
 function NewInvoiceContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { hasPermission } = usePermission();
   const quotationId = searchParams.get("quotationId");
   const inquiryId = searchParams.get("inquiryId");
 
@@ -207,14 +209,16 @@ function NewInvoiceContent() {
               </div>
             </div>
 
-            <button 
-              type="submit"
-              form="invoice-form"
-              disabled={saving}
-              className="w-full mt-8 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 transition-all active:scale-95"
-            >
-              {saving ? "Generating..." : <><Save className="w-5 h-5" /> Generate Invoice</>}
-            </button>
+            {hasPermission("FINANCE", "canCreate") && (
+              <button 
+                type="submit"
+                form="invoice-form"
+                disabled={saving}
+                className="w-full mt-8 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 transition-all active:scale-95"
+              >
+                {saving ? "Generating..." : <><Save className="w-5 h-5" /> Generate Invoice</>}
+              </button>
+            )}
           </div>
         </div>
       </div>

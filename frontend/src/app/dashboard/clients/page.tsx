@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { Plus, X, Search, UserPlus, Pencil, Trash2 } from "lucide-react";
+import { usePermission } from "@/lib/usePermission";
 
 interface Client {
   id: number;
@@ -20,6 +21,7 @@ interface Client {
 
 export default function ClientsPage() {
   const router = useRouter();
+  const { hasPermission } = usePermission();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -106,17 +108,19 @@ export default function ClientsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Clients</h2>
-        <button
-          onClick={handleAddClick}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-            showForm && !editingId
-            ? "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200" 
-            : "bg-blue-600 hover:bg-blue-700 text-white"
-          }`}
-        >
-          {showForm && !editingId ? <X className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-          {showForm && !editingId ? "Cancel" : "Add Client"}
-        </button>
+        {hasPermission("CLIENTS", "canCreate") && (
+          <button
+            onClick={handleAddClick}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              showForm && !editingId
+              ? "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200" 
+              : "bg-blue-600 hover:bg-blue-700 text-white"
+            }`}
+          >
+            {showForm && !editingId ? <X className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+            {showForm && !editingId ? "Cancel" : "Add Client"}
+          </button>
+        )}
       </div>
 
       {showForm && (
@@ -236,20 +240,24 @@ export default function ClientsPage() {
                         >
                           <Search className="w-4 h-4" />
                         </button>
-                        <button 
-                          onClick={() => handleEdit(c)}
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all"
-                          title="Edit"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(c.id)}
-                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {hasPermission("CLIENTS", "canUpdate") && (
+                          <button 
+                            onClick={() => handleEdit(c)}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all"
+                            title="Edit"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
+                        {hasPermission("CLIENTS", "canDelete") && (
+                          <button 
+                            onClick={() => handleDelete(c.id)}
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

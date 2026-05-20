@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
+import { usePermission } from "@/lib/usePermission";
 import { 
   Plus, 
   Search, 
@@ -29,6 +30,7 @@ interface Vehicle {
 }
 
 export default function VehiclesMasterPage() {
+  const { hasPermission } = usePermission();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -151,16 +153,18 @@ export default function VehiclesMasterPage() {
           </h1>
           <p className="text-slate-500 dark:text-slate-400 font-medium">Manage company vehicles, driver logs, capacities, and active dispatches.</p>
         </div>
-        <button
-          onClick={() => {
-            setEditingId(null);
-            setFormData({ name: "", numberPlate: "", vehicleType: "TRUCK", capacityNotes: "", isActive: true });
-            setShowModal(true);
-          }}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-2xl text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20"
-        >
-          <Plus className="w-5 h-5" /> Add New Vehicle
-        </button>
+        {hasPermission("WAREHOUSE", "canCreate") && (
+          <button
+            onClick={() => {
+              setEditingId(null);
+              setFormData({ name: "", numberPlate: "", vehicleType: "TRUCK", capacityNotes: "", isActive: true });
+              setShowModal(true);
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-2xl text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20"
+          >
+            <Plus className="w-5 h-5" /> Add New Vehicle
+          </button>
+        )}
       </div>
 
       {/* Grid of Stats */}
@@ -251,13 +255,15 @@ export default function VehiclesMasterPage() {
                     }`}>
                       {vehicle.vehicleType}
                     </span>
-                    <button 
-                      onClick={() => handleToggleActive(vehicle)}
-                      title={vehicle.isActive ? "Deactivate Vehicle" : "Activate Vehicle"}
-                      className="text-slate-400 hover:text-blue-500 transition-colors"
-                    >
-                      {vehicle.isActive ? <ToggleRight className="w-6 h-6 text-blue-600" /> : <ToggleLeft className="w-6 h-6 text-slate-350" />}
-                    </button>
+                    {hasPermission("WAREHOUSE", "canUpdate") && (
+                      <button 
+                        onClick={() => handleToggleActive(vehicle)}
+                        title={vehicle.isActive ? "Deactivate Vehicle" : "Activate Vehicle"}
+                        className="text-slate-400 hover:text-blue-500 transition-colors"
+                      >
+                        {vehicle.isActive ? <ToggleRight className="w-6 h-6 text-blue-600" /> : <ToggleLeft className="w-6 h-6 text-slate-350" />}
+                      </button>
+                    )}
                   </div>
 
                   {/* Title & Plate */}
@@ -305,7 +311,7 @@ export default function VehiclesMasterPage() {
 
                   {/* Action buttons */}
                   <div className="flex gap-1.5 items-center">
-                    {vehicle.status === 'READY_TO_LEAVE' && (
+                    {hasPermission("WAREHOUSE", "canUpdate") && vehicle.status === 'READY_TO_LEAVE' && (
                       <button 
                         onClick={async () => {
                           try {
@@ -322,25 +328,29 @@ export default function VehiclesMasterPage() {
                         Depart
                       </button>
                     )}
-                    <button
-                      onClick={() => handleEdit(vehicle)}
-                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all"
-                      title="Edit Fleet Details"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(vehicle.id)}
-                      disabled={hasDispatches}
-                      className={`p-2 rounded-xl transition-all ${
-                        hasDispatches 
-                          ? "text-slate-200 cursor-not-allowed dark:text-slate-800" 
-                          : "text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30"
-                      }`}
-                      title={hasDispatches ? "Cannot delete assigned vehicle" : "Delete Vehicle"}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {hasPermission("WAREHOUSE", "canUpdate") && (
+                      <button
+                        onClick={() => handleEdit(vehicle)}
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all"
+                        title="Edit Fleet Details"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
+                    {hasPermission("WAREHOUSE", "canDelete") && (
+                      <button
+                        onClick={() => handleDelete(vehicle.id)}
+                        disabled={hasDispatches}
+                        className={`p-2 rounded-xl transition-all ${
+                          hasDispatches 
+                            ? "text-slate-200 cursor-not-allowed dark:text-slate-800" 
+                            : "text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30"
+                        }`}
+                        title={hasDispatches ? "Cannot delete assigned vehicle" : "Delete Vehicle"}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
