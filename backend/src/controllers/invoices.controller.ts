@@ -154,10 +154,10 @@ export const recordPayment = async (req: AuthRequest, res: Response) => {
     });
     if (updatedInvoice) {
       const totalPaid = (updatedInvoice as any).payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
-      const balance = Number(updatedInvoice.grossTotal) - totalPaid;
+      const balance = Number(updatedInvoice.grossTotal) - Number(updatedInvoice.advanceAmount || 0) - totalPaid;
       let status = 'PENDING';
       if (balance <= 0) status = 'PAID';
-      else if (totalPaid > 0) status = 'PARTIAL';
+      else if (totalPaid > 0 || Number(updatedInvoice.advanceAmount) > 0) status = 'PARTIAL';
 
       await prisma.invoice.update({
         where: { id: Number(id) },
