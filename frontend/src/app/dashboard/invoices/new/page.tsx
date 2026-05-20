@@ -1,8 +1,10 @@
 "use client";
+export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/lib/api";
+import PageSkeleton from "@/components/PageSkeleton";
 import { 
   ChevronLeft, 
   FileText, 
@@ -86,7 +88,7 @@ function NewInvoiceContent() {
     }
   };
 
-  if (loading) return <div className="p-8 text-slate-500">Loading quotation data...</div>;
+  if (loading) return <PageSkeleton variant="form" />;
   if (!quotation) return <div className="p-8 text-red-500">Quotation not found.</div>;
 
   return (
@@ -222,7 +224,7 @@ function NewInvoiceContent() {
 
 export default function NewInvoicePage() {
   return (
-    <Suspense fallback={<div className="p-8">Loading...</div>}>
+    <Suspense fallback={<PageSkeleton variant="form" />}>
       <NewInvoiceContent />
     </Suspense>
   );

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
+import PageSkeleton from "@/components/PageSkeleton";
 import { HardDrive, Plus, Save, Download, Video, Calendar, Trash2 } from "lucide-react";
 
 interface VideoDataSheetTabProps {
@@ -110,7 +111,7 @@ export default function VideoDataSheetTab({ inquiryId }: VideoDataSheetTabProps)
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-slate-500">Loading Data Sheets...</div>;
+  if (loading) return <PageSkeleton variant="table" />;
 
   const totalEventData = dataSheets.reduce((sum, sheet) => {
     return sum + (sheet.entries || []).reduce((entrySum: number, entry: any) => entrySum + Number(entry.dataGb), 0);

@@ -1,8 +1,10 @@
 "use client";
+export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/lib/api";
+import PageSkeleton from "@/components/PageSkeleton";
 import { generateClientProfilePDF } from "@/lib/pdfGenerator";
 import { 
   ArrowLeft, 
@@ -43,7 +45,7 @@ function ClientDetailsContent() {
     }
   }, [id]);
 
-  if (loading) return <div className="p-8 text-slate-500">Loading client details...</div>;
+  if (loading) return <PageSkeleton variant="page" />;
   if (!client) return <div className="p-8 text-red-500">Client not found</div>;
 
   return (
@@ -201,7 +203,7 @@ function ClientDetailsContent() {
 
 export default function ClientDetailsPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-slate-500">Loading profile...</div>}>
+    <Suspense fallback={<PageSkeleton variant="page" />}>
       <ClientDetailsContent />
     </Suspense>
   );

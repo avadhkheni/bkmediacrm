@@ -1,8 +1,10 @@
 "use client";
+export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import api from "@/lib/api";
+import PageSkeleton from "@/components/PageSkeleton";
 import { 
   ArrowLeft, FileText, CheckCircle2, AlertCircle, 
   IndianRupee, CreditCard, Calendar, User, 
@@ -103,7 +105,7 @@ export default function InvoiceDetailPage() {
   };
 
   if (!id) return <div className="p-8 text-center text-red-500">Missing Invoice ID in URL.</div>;
-  if (loading) return <div className="p-8 text-center text-slate-500">Loading invoice details...</div>;
+  if (loading) return <PageSkeleton variant="page" />;
   if (!invoice) return <div className="p-8 text-center text-red-500">Invoice not found.</div>;
 
   const getStatusColor = (status: string) => {

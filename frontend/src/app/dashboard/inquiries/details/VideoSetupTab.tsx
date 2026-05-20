@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
+import PageSkeleton from "@/components/PageSkeleton";
 import { 
   Video, 
   Layers, 
@@ -117,7 +118,7 @@ export default function VideoSetupTab({ inquiryId }: VideoSetupTabProps) {
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-slate-500">Loading Video Equipment Booking...</div>;
+  if (loading) return <PageSkeleton variant="table" />;
 
   return (
     <div className="space-y-6 relative">

@@ -1,14 +1,16 @@
 "use client";
+export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import api from "@/lib/api";
+import PageSkeleton from "@/components/PageSkeleton";
 import SearchableSelect from "@/components/SearchableSelect";
 import QuotationSourcingSummary from "@/components/QuotationSourcingSummary";
 import QuotationLineSourceBadge from "@/components/QuotationLineSourceBadge";
 import QuotationStockHint from "@/components/QuotationStockHint";
-import { validateQuotationStock } from "@/lib/equipmentAvailability";
+import { validateQuotationStock, getMaxQuantityForRow, formatEquipmentLabel } from "@/lib/equipmentAvailability";
 import { filterVendorsByDepartment } from "@/lib/vendor";
 
 const LED_SIZE_PRESETS = [
@@ -225,7 +227,7 @@ function NewQuotationContent() {
   };
 
   if (!inquiryId) return <div className="p-8">No Inquiry ID provided.</div>;
-  if (loading) return <div className="p-8">Loading form...</div>;
+  if (loading) return <PageSkeleton variant="form" />;
 
   return (
     <div className="w-full space-y-6">
@@ -291,22 +293,25 @@ function NewQuotationContent() {
                       <div className="md:col-span-5">
                         <label className="block text-[11px] text-slate-500 mb-1">Equipment / Service</label>
                         {(() => {
-                          const selectedEquipInOtherRows = watchItems
-                            .map((it: any, idx: number) => idx !== index && (it.category || inquiry?.department) === currentCategory
-                              ? (it.equipmentType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim()
-                              : null)
-                            .filter(Boolean);
+                          const stockCtx = { videoEquipOptions, soundEquipOptions, ledStockOptions };
                           const opts = currentCategory === 'VIDEO' ? videoEquipOptions : soundEquipOptions;
                           return (
                             <SearchableSelect 
                               options={[
                                 ...opts
-                                  .filter((eq: any) => !selectedEquipInOtherRows.includes(`${eq.name} (${eq.brand} ${eq.model})`) && !selectedEquipInOtherRows.includes(eq.name))
-                                  .map((eq: any) => ({
-                                    id: `${eq.name} (${eq.brand} ${eq.model})`,
-                                    name: eq.name,
-                                    subtext: `${eq.brand || ''} ${eq.model || ''} [${eq.category}]`
-                                  })),
+                                  .filter((eq: any) => {
+                                    const label = formatEquipmentLabel(eq);
+                                    const tempRowItem = { category: currentCategory, equipmentType: label, nos: watchItems[index]?.nos };
+                                    const maxQty = getMaxQuantityForRow(watchItems, index, tempRowItem, stockCtx);
+                                    return maxQty === null || maxQty > 0;
+                                  })
+                                  .map((eq: any) => {
+                                    return {
+                                      id: formatEquipmentLabel(eq),
+                                      name: eq.name,
+                                      subtext: `${eq.brand || ''} ${eq.model || ''} [${eq.category}]`.trim()
+                                    };
+                                  }),
                                 { id: '__custom', name: '✏️ Custom entry...' }
                               ]}
                               value={(watchItems[index]?.equipmentType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim()}
@@ -336,15 +341,15 @@ function NewQuotationContent() {
                       <div className="md:col-span-3">
                         <label className="block text-[11px] text-slate-500 mb-1">LED Type</label>
                         {(() => {
-                          const selectedLedInOtherRows = watchItems
-                            .map((it: any, idx: number) => idx !== index && (it.category || inquiry?.department) === 'LED'
-                              ? (it.ledType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim()
-                              : null)
-                            .filter(Boolean);
+                          const stockCtx = { videoEquipOptions, soundEquipOptions, ledStockOptions };
                           return (
                             <SearchableSelect 
                               options={[...new Set(ledStockOptions.map((s: any) => s.ledType))]
-                                .filter((type: any) => !selectedLedInOtherRows.includes(type))
+                                .filter((type: any) => {
+                                    const tempRowItem = { category: 'LED', ledType: type, nos: watchItems[index]?.nos, widthFt: watchItems[index]?.widthFt, heightFt: watchItems[index]?.heightFt };
+                                    const maxQty = getMaxQuantityForRow(watchItems, index, tempRowItem, stockCtx);
+                                    return maxQty === null || maxQty > 0;
+                                })
                                 .map((type: any) => ({
                                   id: type,
                                   name: type,
@@ -607,7 +612,7 @@ function NewQuotationContent() {
 
 export default function NewQuotationPage() {
   return (
-    <Suspense fallback={<div className="p-8">Loading...</div>}>
+    <Suspense fallback={<PageSkeleton variant="form" />}>
       <NewQuotationContent />
     </Suspense>
   );

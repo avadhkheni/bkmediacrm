@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
+import PageSkeleton from "@/components/PageSkeleton";
 import api from "@/lib/api";
 import SearchableSelect from "@/components/SearchableSelect";
 import { filterVendorsByDepartment } from "@/lib/vendor";
@@ -250,7 +251,7 @@ export default function NewQuotationPage() {
     }
   };
 
-  if (loading) return <div className="p-8">Loading form...</div>;
+  if (loading) return <PageSkeleton variant="form" />;
 
   return (
     <div className="w-full space-y-6">

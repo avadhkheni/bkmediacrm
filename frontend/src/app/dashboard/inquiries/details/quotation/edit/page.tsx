@@ -1,8 +1,10 @@
 "use client";
+export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
+import PageSkeleton from "@/components/PageSkeleton";
 import api from "@/lib/api";
 import SearchableSelect from "@/components/SearchableSelect";
 import QuotationStockHint from "@/components/QuotationStockHint";
@@ -269,7 +271,7 @@ function EditQuotationContent() {
   };
 
   if (!inquiryId || !quotationId) return <div className="p-8">Missing parameters.</div>;
-  if (loading) return <div className="p-8">Loading quotation data...</div>;
+  if (loading) return <PageSkeleton variant="form" />;
 
   const locked = quotation ? isQuotationLocked(quotation) : false;
   const stockCtx = { videoEquipOptions, soundEquipOptions, ledStockOptions };
@@ -404,16 +406,9 @@ function EditQuotationContent() {
                                 ...opts
                                   .filter((eq: any) => {
                                     const label = formatEquipmentLabel(eq);
-                                    const selectedInOtherRows = watchItems
-                                      .map((it: any, idx: number) => {
-                                        if (idx === index) return null;
-                                        const cat = (it.category || '').toUpperCase();
-                                        if (cat !== currentCategory) return null;
-                                        if (it.isVendorRented) return null;
-                                        return (it.equipmentType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim();
-                                      })
-                                      .filter(Boolean);
-                                    return !selectedInOtherRows.includes(label) && !selectedInOtherRows.includes(eq.name);
+                                    const tempRowItem = { ...rowItem, equipmentType: label, category: currentCategory };
+                                    const maxQty = getMaxQuantityForRow(watchItems, index, tempRowItem, stockCtx);
+                                    return maxQty === null || maxQty > 0;
                                   })
                                   .map((eq: any) => ({
                                     id: formatEquipmentLabel(eq),
@@ -496,15 +491,9 @@ function EditQuotationContent() {
                                 ...[...new Set(ledStockOptions.map((s: any) => s.ledType))]
                                   .filter(Boolean)
                                   .filter((type: any) => {
-                                    const selectedInOtherRows = watchItems
-                                      .map((it: any, idx: number) => {
-                                        if (idx === index) return null;
-                                        if ((it.category || '').toUpperCase() !== 'LED') return null;
-                                        if (it.isVendorRented) return null;
-                                        return (it.ledType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim();
-                                      })
-                                      .filter(Boolean);
-                                    return !selectedInOtherRows.includes(type);
+                                    const tempRowItem = { ...rowItem, ledType: type, category: 'LED' };
+                                    const maxQty = getMaxQuantityForRow(watchItems, index, tempRowItem, stockCtx);
+                                    return maxQty === null || maxQty > 0;
                                   })
                                   .map((type: any) => ({
                                     id: type,
@@ -791,7 +780,7 @@ function EditQuotationContent() {
 
 export default function EditQuotationPage() {
   return (
-    <Suspense fallback={<div className="p-8">Loading...</div>}>
+    <Suspense fallback={<PageSkeleton variant="form" />}>
       <EditQuotationContent />
     </Suspense>
   );

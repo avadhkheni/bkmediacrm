@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
+import PageSkeleton from "@/components/PageSkeleton";
 import api from "@/lib/api";
 import SearchableSelect from "@/components/SearchableSelect";
 import { isQuotationLocked, QUOTATION_LOCKED_MESSAGE } from "@/lib/quotation";
@@ -328,7 +329,7 @@ export default function EditQuotationPage() {
     }
   };
 
-  if (loading) return <div className="p-8">Loading quotation...</div>;
+  if (loading) return <PageSkeleton variant="form" />;
   if (quotation && isQuotationLocked(quotation)) {
     return (
       <div className="p-8">

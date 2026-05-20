@@ -1,8 +1,10 @@
 "use client";
+export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/lib/api";
+import PageSkeleton from "@/components/PageSkeleton";
 import { ArrowLeft, Truck, DollarSign, Trash2, ShieldAlert } from "lucide-react";
 
 function LedInquiryContent() {
@@ -135,7 +137,7 @@ function LedInquiryContent() {
   };
 
   if (!id) return <div className="p-8">No Inquiry ID provided.</div>;
-  if (loading) return <div className="p-8">Loading LED management...</div>;
+  if (loading) return <PageSkeleton variant="page" />;
 
   return (
     <div className="space-y-6">
@@ -431,7 +433,7 @@ function LedInquiryContent() {
 
 export default function LedInquiryManagementPage() {
   return (
-    <Suspense fallback={<div className="p-8">Loading...</div>}>
+    <Suspense fallback={<PageSkeleton variant="page" />}>
       <LedInquiryContent />
     </Suspense>
   );

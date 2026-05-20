@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
+import PageSkeleton from "@/components/PageSkeleton";
 import { 
   Users, 
   Monitor, 
@@ -84,7 +85,7 @@ export default function AvailabilityPage() {
     { label: "Amps", value: "Amplifiers" },
   ];
 
-  if (loading) return <div className="p-8 text-gray-500 dark:text-slate-400">Loading availability dashboard...</div>;
+  if (loading) return <PageSkeleton variant="table" />;
 
   return (
     <div className="w-full space-y-6 transition-colors">

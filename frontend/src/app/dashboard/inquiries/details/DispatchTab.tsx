@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
+import PageSkeleton from "@/components/PageSkeleton";
 import { Truck, Users, Package, Plus, Trash2, Box } from "lucide-react";
 
 interface DispatchTabProps {
@@ -119,7 +120,7 @@ export default function DispatchTab({ inquiryId, department }: DispatchTabProps)
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-slate-500">Loading Dispatch Data...</div>;
+  if (loading) return <PageSkeleton variant="table" />;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

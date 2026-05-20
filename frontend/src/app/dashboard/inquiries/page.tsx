@@ -5,6 +5,7 @@ import Link from "next/link";
 import api from "@/lib/api";
 import { Trash2, Eye, Download, Loader2, Filter } from "lucide-react";
 import { generateInquiryPDF } from "@/lib/pdfGenerator";
+import PageSkeleton from "@/components/PageSkeleton";
 
 interface Inquiry {
   id: number;
@@ -105,6 +106,8 @@ export default function InquiriesPage() {
   });
 
   const hasActiveFilters = searchTerm || selectedDept !== "ALL" || selectedStatus !== "ALL" || startDate || endDate;
+
+  if (loading) return <PageSkeleton variant="table" />;
 
   return (
     <div className="space-y-6">
@@ -242,9 +245,7 @@ export default function InquiriesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-              {loading ? (
-                <tr><td colSpan={7} className="py-8 text-center text-slate-500">Loading inquiries...</td></tr>
-              ) : filtered.length === 0 ? (
+              {filtered.length === 0 ? (
                 <tr><td colSpan={7} className="py-8 text-center text-slate-500">No matching inquiries found.</td></tr>
               ) : (
                 filtered.map((inq) => (

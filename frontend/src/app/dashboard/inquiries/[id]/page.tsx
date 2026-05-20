@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import api from "@/lib/api";
+import PageSkeleton from "@/components/PageSkeleton";
 import { FileText, ClipboardList, CheckCircle2, AlertCircle, IndianRupee, History, Settings } from "lucide-react";
 
 export default function InquiryDetailPage() {
@@ -32,7 +33,7 @@ export default function InquiryDetailPage() {
     fetchInquiry();
   }, [id]);
 
-  if (loading) return <div className="p-8 text-gray-500 dark:text-slate-400">Loading inquiry details...</div>;
+  if (loading) return <PageSkeleton variant="page" />;
   if (!inquiry) return <div className="p-8 text-red-500 dark:text-red-400">Inquiry not found.</div>;
 
   const getStatusBadge = (status: string) => {

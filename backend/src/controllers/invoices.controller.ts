@@ -89,6 +89,20 @@ export const createInvoice = async (req: AuthRequest, res: Response) => {
         createdById: req.user?.userId,
       },
     });
+
+    if (Number(advanceAmount || 0) > 0) {
+      await prisma.payment.create({
+        data: {
+          invoiceId: invoice.id,
+          amount: Number(advanceAmount),
+          paymentType: 'ADVANCE',
+          paymentMethod: 'CASH', // Default, or can be passed from frontend
+          notes: 'Advance recorded during invoice creation',
+          receivedById: req.user?.userId,
+        }
+      });
+    }
+
     res.status(201).json(invoice);
   } catch (error) {
     console.error('Error creating invoice:', error);
@@ -154,10 +168,13 @@ export const recordPayment = async (req: AuthRequest, res: Response) => {
     });
     if (updatedInvoice) {
       const totalPaid = (updatedInvoice as any).payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
-      const balance = Number(updatedInvoice.grossTotal) - Number(updatedInvoice.advanceAmount || 0) - totalPaid;
+      const hasAdvanceRecord = (updatedInvoice as any).payments.some((p: any) => p.paymentType === 'ADVANCE');
+      const legacyAdvance = hasAdvanceRecord ? 0 : Number(updatedInvoice.advanceAmount || 0);
+      
+      const balance = Number(updatedInvoice.grossTotal) - legacyAdvance - totalPaid;
       let status = 'PENDING';
       if (balance <= 0) status = 'PAID';
-      else if (totalPaid > 0 || Number(updatedInvoice.advanceAmount) > 0) status = 'PARTIAL';
+      else if (totalPaid > 0 || legacyAdvance > 0) status = 'PARTIAL';
 
       await prisma.invoice.update({
         where: { id: Number(id) },

@@ -419,7 +419,7 @@ export default function VideoDepartmentPage() {
                       <p className="text-sm font-bold text-slate-800 dark:text-white">{ev.inquiryNumber}</p>
                     </div>
                     <button
-                      onClick={() => router.push(`/dashboard/inquiries/${ev.id}`)}
+                      onClick={() => router.push(`/dashboard/inquiries/details?id=${ev.id}`)}
                       className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 rounded-xl text-xs font-bold hover:opacity-80 transition-opacity flex items-center gap-2"
                     >
                       <Eye className="w-4 h-4" /> View Details

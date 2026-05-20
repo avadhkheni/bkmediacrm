@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
+import PageSkeleton from "@/components/PageSkeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { UserCog, Users, Download, FileDown, IndianRupee } from 'lucide-react';
 import { exportToCSV } from "@/lib/exportUtils";
@@ -33,7 +34,7 @@ export default function StaffReport() {
     generateStaffReportPDF(data);
   };
 
-  if (loading) return <div className="py-12 text-center text-slate-500">Loading staff analytics...</div>;
+  if (loading) return <PageSkeleton variant="report" />;
   if (!data) return <div className="py-12 text-center text-red-500">Failed to load data.</div>;
 
   const cards = [

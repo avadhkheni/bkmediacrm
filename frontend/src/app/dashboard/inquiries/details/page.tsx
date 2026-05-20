@@ -1,8 +1,10 @@
 "use client";
+export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/lib/api";
+import PageSkeleton from "@/components/PageSkeleton";
 import { 
   ChevronLeft, 
   Plus, 
@@ -109,7 +111,7 @@ function InquiryDetailsContent() {
   };
 
   if (!id) return <div className="p-8">No Inquiry ID provided.</div>;
-  if (loading) return <div className="p-8 text-gray-500 dark:text-slate-400">Loading inquiry details...</div>;
+  if (loading) return <PageSkeleton variant="page" />;
   if (!inquiry) return <div className="p-8 text-red-500 dark:text-red-400">Inquiry not found.</div>;
 
   const getStatusBadge = (status: string) => {
@@ -746,7 +748,7 @@ function InquiryDetailsContent() {
 
 export default function InquiryDetailPage() {
   return (
-    <Suspense fallback={<div className="p-8">Loading...</div>}>
+    <Suspense fallback={<PageSkeleton variant="page" />}>
       <InquiryDetailsContent />
     </Suspense>
   );
