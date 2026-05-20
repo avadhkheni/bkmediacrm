@@ -16,20 +16,20 @@ export default function NotificationBell() {
   useEffect(() => {
     fetchNotifications();
 
+    // Vercel serverless doesn't support WebSockets — skip socket.io in production
     const isProd = process.env.NODE_ENV === "production";
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || (isProd ? "/" : "http://localhost:5001");
-    const socketOptions = isProd ? { path: "/_/backend/socket.io" } : undefined;
-    const socket = io(socketUrl, socketOptions);
+    if (isProd) return;
+
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5001";
+    const socket = io(socketUrl);
 
     socket.on("new_notification", (notification) => {
-      // Only add if the user's role is in targetRoles
       const rolesArray = Array.isArray(notification.targetRoles) 
         ? notification.targetRoles 
         : notification.targetRoles.split(',');
 
       if (user?.role === 'ADMIN' || rolesArray.includes(user?.role)) {
         addNotification(notification);
-        // Optional: Trigger a browser notification or sound
       }
     });
 
