@@ -27,17 +27,11 @@ export const authorize = (allowedRoles: string[]) => {
         return next();
       }
 
-      // 2. Fallback basic role validation to ensure the role exists in route config
-      if (!allowedRoles.includes(role)) {
-        res.status(403).json({ message: `Forbidden: Role ${role} is not authorized for this resource.` });
-        return;
-      }
-
-      // 3. Dynamic Database Permission Verification
+      // 2. Dynamic Database Permission Verification
       const url = req.baseUrl || req.originalUrl || '';
       let matchedModule: string | null = null;
 
-      if (url.includes('/inquiries')) {
+      if (url.includes('/inquiries') || url.includes('/pdf/quotation') || url.includes('/pdf/requirements') || url.includes('/pdf/dispatch')) {
         matchedModule = 'INQUIRIES';
       } else if (url.includes('/clients')) {
         matchedModule = 'CLIENTS';
@@ -50,18 +44,19 @@ export const authorize = (allowedRoles: string[]) => {
         url.includes('/warehouse') || 
         url.includes('/led') || 
         url.includes('/video') || 
-        url.includes('/sound') || 
-        url.includes('/vendors')
+        url.includes('/sound')
       ) {
         matchedModule = 'WAREHOUSE';
-      } else if (
-        url.includes('/staff') || 
-        url.includes('/roles') || 
-        url.includes('/vehicles')
-      ) {
+      } else if (url.includes('/vendors') || url.includes('/pdf/vendor-rentals')) {
+        matchedModule = 'VENDORS';
+      } else if (url.includes('/vehicles')) {
+        matchedModule = 'VEHICLES';
+      } else if (url.includes('/staff') || url.includes('/roles')) {
         matchedModule = 'STAFF';
-      } else if (url.includes('/invoices') || url.includes('/expense')) {
-        matchedModule = 'FINANCE';
+      } else if (url.includes('/invoices') || url.includes('/pdf/invoice')) {
+        matchedModule = 'INVOICES';
+      } else if (url.includes('/expense') || url.includes('/pdf/expense-report')) {
+        matchedModule = 'EXPENSE_REPORTS';
       } else if (url.includes('/dashboard') || url.includes('/analytics')) {
         matchedModule = 'DASHBOARD';
       }
@@ -92,6 +87,12 @@ export const authorize = (allowedRoles: string[]) => {
           res.status(403).json({ 
             message: `Forbidden: Your role (${role}) does not have permission to ${action.replace('can', '').toLowerCase()} ${matchedModule.toLowerCase()} resources.` 
           });
+          return;
+        }
+      } else {
+        // 3. Fallback basic role validation for routes without a specific module mapping
+        if (!allowedRoles.includes(role)) {
+          res.status(403).json({ message: `Forbidden: Role ${role} is not authorized for this resource.` });
           return;
         }
       }

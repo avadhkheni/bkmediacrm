@@ -77,7 +77,11 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
     // Verify token exists in DB and is valid
     const dbToken = await prisma.refreshToken.findFirst({
       where: { token: refreshToken, expiresAt: { gt: new Date() } },
-      include: { user: true },
+      include: { 
+        user: {
+          include: { roleData: true }
+        }
+      },
     });
 
     if (!dbToken) {
@@ -94,7 +98,8 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const accessToken = generateAccessToken(dbToken.user.id, dbToken.user.role);
+    const roleUpdatedAt = dbToken.user.roleData?.updatedAt || new Date();
+    const accessToken = generateAccessToken(dbToken.user.id, dbToken.user.role, roleUpdatedAt);
     const newRefreshToken = generateRefreshToken(dbToken.user.id);
 
     // Replace old refresh token with new one
