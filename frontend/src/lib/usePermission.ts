@@ -27,9 +27,9 @@ export const usePermission = () => {
     const permissions = user.roleData?.permissions || [];
     const perm = permissions.find(p => p.module === moduleName);
 
-    // If no permission record is created yet in DB, default to false for security (except canRead which defaults to true in Prisma model definition)
+    // If no permission record exists, deny all access
     if (!perm) {
-      return action === "canRead";
+      return false;
     }
 
     return !!perm[action];
