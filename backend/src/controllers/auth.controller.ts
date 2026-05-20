@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../utils/prisma';
+import { AuthRequest } from '../middleware/auth.middleware';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt';
 
 export const login = async (req: Request, res: Response): Promise<void> => {
@@ -111,6 +112,32 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
     res.json({ accessToken, refreshToken: newRefreshToken });
   } catch (error) {
     console.error('Refresh error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ message: 'Authentication required' });
+      return;
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      include: {
+        roleData: {
+          include: { permissions: true }
+        }
+      }
+    });
+    if (!user) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+    const { passwordHash, ...userWithoutPassword } = user;
+    res.json(userWithoutPassword);
+  } catch (error) {
+    console.error('getMe error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };

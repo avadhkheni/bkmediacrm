@@ -23,6 +23,7 @@ import {
   ToggleRight
 } from "lucide-react";
 import { usePermission } from "@/lib/usePermission";
+import { useAuthStore } from "@/store/authStore";
 
 interface Permission {
   id?: number;
@@ -194,6 +195,17 @@ export default function RolesPage() {
 
       addToast(`Permissions for ${selectedRole.name} updated successfully!`, "success");
       fetchRoles();
+
+      // If the current user's role was updated, refresh their permissions immediately
+      const currentUser = useAuthStore.getState().user;
+      if (currentUser && currentUser.role === selectedRole.name) {
+        try {
+          const freshUser = await api.get('/auth/me');
+          useAuthStore.getState().setUser(freshUser.data);
+        } catch {
+          // silent fail - user can still log out/in
+        }
+      }
     } catch (error) {
       console.error("Failed to update permissions", error);
       addToast("Failed to update role permissions", "error");
