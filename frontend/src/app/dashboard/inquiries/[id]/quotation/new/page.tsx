@@ -195,6 +195,33 @@ export default function NewQuotationPage() {
       return;
     }
 
+    // Stock validation: block submission if in-house stock is exceeded for non-vendor items
+    if (inquiry.department === 'VIDEO' || inquiry.department === 'SOUND') {
+      for (let i = 0; i < data.items.length; i++) {
+        const item = data.items[i];
+        if (item.isVendorRented || (item.equipmentType || '').startsWith('[VENDOR:')) continue;
+        const stockInfo = getEquipmentStockInfo(item.equipmentType);
+        if (!stockInfo) continue;
+        const availQty = stockInfo.availableQuantity !== undefined ? stockInfo.availableQuantity : stockInfo.totalQuantity;
+        if (Number(item.nos || 1) > availQty) {
+          alert(`Line ${i + 1}: You have requested ${item.nos} unit(s) of "${stockInfo.name}" but only ${availQty} unit(s) are available in-house.\n\nEither reduce the quantity, or check "Rent from Outside Supplier" for this item.`);
+          return;
+        }
+      }
+    } else if (inquiry.department === 'LED') {
+      for (let i = 0; i < data.items.length; i++) {
+        const item = data.items[i];
+        if (item.isVendorRented || (item.ledType || '').startsWith('[VENDOR:')) continue;
+        const availableSqft = getAvailableSqftForType(item.ledType);
+        const requestedSqft = Number(item.widthFt || 0) * Number(item.heightFt || 0) * Number(item.nos || 1);
+        if (requestedSqft > availableSqft) {
+          const shortage = Math.round(requestedSqft - availableSqft);
+          alert(`Line ${i + 1}: Stock shortage of ${shortage} sq ft for "${item.ledType}".\n\nEither reduce the dimensions/quantity, or check "Rent from Outside Supplier" for this item.`);
+          return;
+        }
+      }
+    }
+
     try {
       const payload = {
         inquiryId,
@@ -277,28 +304,37 @@ export default function NewQuotationPage() {
                           </button>
                         </div>
                       ) : (
-                        <SearchableSelect 
-                          options={[
-                            ...warehouseStock.map((eq: any) => ({
-                              id: eq.name,
-                              name: eq.name,
-                              subtext: `${eq.brand || ''} ${eq.model || ''} [Available: ${eq.availableQuantity !== undefined ? eq.availableQuantity : eq.totalQuantity}]`
-                            })),
-                            { id: '__custom', name: '✏️ Custom entry...' }
-                          ]}
-                          value={(watchItems[index]?.equipmentType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim()}
-                          onChange={(val) => {
-                            if (val === '__custom') {
-                              setValue(`items.${index}.isCustomEquipment`, true);
-                              setValue(`items.${index}.equipmentType`, '');
-                            } else {
-                              handleEquipmentChange(index, val.toString());
-                            }
-                          }}
-                          placeholder="Select equipment..."
-                          error={errors.items?.[index]?.equipmentType ? 'Required' : undefined}
-                          compact
-                        />
+                        (() => {
+                            const selectedEquipInOtherRows = watchItems
+                              .map((it: any, idx: number) => idx !== index ? (it.equipmentType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim() : null)
+                              .filter(Boolean);
+                            return (
+                              <SearchableSelect 
+                                options={[
+                                  ...warehouseStock
+                                    .filter((eq: any) => !selectedEquipInOtherRows.includes(eq.name))
+                                    .map((eq: any) => ({
+                                      id: eq.name,
+                                      name: eq.name,
+                                      subtext: `${eq.brand || ''} ${eq.model || ''} [Available: ${eq.availableQuantity !== undefined ? eq.availableQuantity : eq.totalQuantity}]`
+                                    })),
+                                  { id: '__custom', name: '✏️ Custom entry...' }
+                                ]}
+                                value={(watchItems[index]?.equipmentType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim()}
+                                onChange={(val) => {
+                                  if (val === '__custom') {
+                                    setValue(`items.${index}.isCustomEquipment`, true);
+                                    setValue(`items.${index}.equipmentType`, '');
+                                  } else {
+                                    handleEquipmentChange(index, val.toString());
+                                  }
+                                }}
+                                placeholder="Select equipment..."
+                                error={errors.items?.[index]?.equipmentType ? 'Required' : undefined}
+                                compact
+                              />
+                            );
+                          })()
                       )}
                     </div>
                     <div className="md:col-span-1">
@@ -335,28 +371,38 @@ export default function NewQuotationPage() {
                           </button>
                         </div>
                       ) : (
-                        <SearchableSelect 
-                          options={[
-                            ...[...new Set(warehouseStock.map((s: any) => s.ledType))].filter(Boolean).map((type: any) => ({
-                              id: type,
-                              name: type,
-                              subtext: warehouseStock.filter((s: any) => s.ledType === type).map((s: any) => `${s.companyName || ''}`).join(', ')
-                            })),
-                            { id: '__custom', name: '✏️ Custom entry...' }
-                          ]}
-                          value={(watchItems[index]?.ledType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim()}
-                          onChange={(val) => {
-                            if (val === '__custom') {
-                              setValue(`items.${index}.isCustomLed`, true);
-                              setValue(`items.${index}.ledType`, '');
-                            } else {
-                              handleLedTypeChange(index, val.toString());
-                            }
-                          }}
-                          placeholder="Select LED type..."
-                          error={errors.items?.[index]?.ledType ? 'Required' : undefined}
-                          compact
-                        />
+                        (() => {
+                            const selectedLedInOtherRows = watchItems
+                              .map((it: any, idx: number) => idx !== index ? (it.ledType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim() : null)
+                              .filter(Boolean);
+                            return (
+                              <SearchableSelect 
+                                options={[
+                                  ...[...new Set(warehouseStock.map((s: any) => s.ledType))]
+                                    .filter(Boolean)
+                                    .filter((type: any) => !selectedLedInOtherRows.includes(type))
+                                    .map((type: any) => ({
+                                      id: type,
+                                      name: type,
+                                      subtext: warehouseStock.filter((s: any) => s.ledType === type).map((s: any) => `${s.companyName || ''}`).join(', ')
+                                    })),
+                                  { id: '__custom', name: '✏️ Custom entry...' }
+                                ]}
+                                value={(watchItems[index]?.ledType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim()}
+                                onChange={(val) => {
+                                  if (val === '__custom') {
+                                    setValue(`items.${index}.isCustomLed`, true);
+                                    setValue(`items.${index}.ledType`, '');
+                                  } else {
+                                    handleLedTypeChange(index, val.toString());
+                                  }
+                                }}
+                                placeholder="Select LED type..."
+                                error={errors.items?.[index]?.ledType ? 'Required' : undefined}
+                                compact
+                              />
+                            );
+                          })()
                       )}
                     </div>
                     <div className="md:col-span-1">
@@ -428,16 +474,24 @@ export default function NewQuotationPage() {
                   }
                   
                   const availQty = stockInfo.availableQuantity !== undefined ? stockInfo.availableQuantity : stockInfo.totalQuantity;
+                  const requestedQty = Number(watchItems[index]?.nos || 1);
                   if (availQty <= 0) {
                     return (
                       <div className="md:col-span-12 flex items-center gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 px-3 py-2 rounded-lg border border-amber-200/20 mt-1">
                         <span>⚠️ Out of Stock: "{stockInfo.name}" is currently booked or unavailable in warehouse. You will need to outsource this item.</span>
                       </div>
                     );
+                  } else if (requestedQty > availQty) {
+                    const shortage = requestedQty - availQty;
+                    return (
+                      <div className="md:col-span-12 flex items-center gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 px-3 py-2 rounded-lg border border-amber-200/20 mt-1">
+                        <span>⚠️ Stock Shortage: BK Media has {availQty} unit(s) of "{stockInfo.name}" in-house. You need to outsource the remaining {shortage} unit(s). Check "Rent from Outside Supplier" below.</span>
+                      </div>
+                    );
                   } else {
                     return (
                       <div className="md:col-span-12 flex items-center gap-2 text-xs font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/20 px-3 py-2 rounded-lg border border-green-200/20 mt-1">
-                        <span>✓ Sufficient Stock: {availQty} units of "{stockInfo.name}" available in-house.</span>
+                        <span>✓ Sufficient Stock: {availQty} unit(s) of "{stockInfo.name}" available in-house.</span>
                       </div>
                     );
                   }

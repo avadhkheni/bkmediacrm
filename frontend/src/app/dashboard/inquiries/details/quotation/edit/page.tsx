@@ -401,11 +401,25 @@ function EditQuotationContent() {
                           return (
                             <SearchableSelect 
                               options={[
-                                ...opts.map((eq: any) => ({
-                                  id: formatEquipmentLabel(eq),
-                                  name: eq.name,
-                                  subtext: `${eq.brand || ''} ${eq.model || ''} · ${getEquipmentAvailableUnits(eq)} in stock`
-                                })),
+                                ...opts
+                                  .filter((eq: any) => {
+                                    const label = formatEquipmentLabel(eq);
+                                    const selectedInOtherRows = watchItems
+                                      .map((it: any, idx: number) => {
+                                        if (idx === index) return null;
+                                        const cat = (it.category || '').toUpperCase();
+                                        if (cat !== currentCategory) return null;
+                                        if (it.isVendorRented) return null;
+                                        return (it.equipmentType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim();
+                                      })
+                                      .filter(Boolean);
+                                    return !selectedInOtherRows.includes(label) && !selectedInOtherRows.includes(eq.name);
+                                  })
+                                  .map((eq: any) => ({
+                                    id: formatEquipmentLabel(eq),
+                                    name: eq.name,
+                                    subtext: `${eq.brand || ''} ${eq.model || ''} · ${getEquipmentAvailableUnits(eq)} in stock`
+                                  })),
                                 { id: '__custom', name: '✏️ Custom entry...' }
                               ]}
                               value={cleanEqVal}
@@ -479,11 +493,24 @@ function EditQuotationContent() {
                           return (
                             <SearchableSelect 
                               options={[
-                                ...[...new Set(ledStockOptions.map((s: any) => s.ledType))].filter(Boolean).map((type: any) => ({
-                                  id: type,
-                                  name: type,
-                                  subtext: ledStockOptions.filter((s: any) => s.ledType === type).map((s: any) => `${s.companyName || ''}`).join(', ')
-                                })),
+                                ...[...new Set(ledStockOptions.map((s: any) => s.ledType))]
+                                  .filter(Boolean)
+                                  .filter((type: any) => {
+                                    const selectedInOtherRows = watchItems
+                                      .map((it: any, idx: number) => {
+                                        if (idx === index) return null;
+                                        if ((it.category || '').toUpperCase() !== 'LED') return null;
+                                        if (it.isVendorRented) return null;
+                                        return (it.ledType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim();
+                                      })
+                                      .filter(Boolean);
+                                    return !selectedInOtherRows.includes(type);
+                                  })
+                                  .map((type: any) => ({
+                                    id: type,
+                                    name: type,
+                                    subtext: ledStockOptions.filter((s: any) => s.ledType === type).map((s: any) => `${s.companyName || ''}`).join(', ')
+                                  })),
                                 { id: '__custom', name: '✏️ Custom entry...' }
                               ]}
                               value={cleanLedVal}

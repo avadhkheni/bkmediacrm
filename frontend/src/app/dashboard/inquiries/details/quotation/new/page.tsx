@@ -7,6 +7,8 @@ import api from "@/lib/api";
 import SearchableSelect from "@/components/SearchableSelect";
 import QuotationSourcingSummary from "@/components/QuotationSourcingSummary";
 import QuotationLineSourceBadge from "@/components/QuotationLineSourceBadge";
+import QuotationStockHint from "@/components/QuotationStockHint";
+import { validateQuotationStock } from "@/lib/equipmentAvailability";
 import { filterVendorsByDepartment } from "@/lib/vendor";
 
 const LED_SIZE_PRESETS = [
@@ -180,6 +182,17 @@ function NewQuotationContent() {
       return;
     }
 
+    // Stock validation: block submission on stock shortages for in-house items
+    const stockError = validateQuotationStock(data.items, {
+      videoEquipOptions,
+      soundEquipOptions,
+      ledStockOptions,
+    });
+    if (stockError) {
+      alert(`Stock shortage detected:\n\n${stockError}\n\nEither reduce the quantity or check "Rent from Outside Supplier" for that item.`);
+      return;
+    }
+
     try {
       const payload = {
         inquiryId,
@@ -277,21 +290,33 @@ function NewQuotationContent() {
                     <>
                       <div className="md:col-span-5">
                         <label className="block text-[11px] text-slate-500 mb-1">Equipment / Service</label>
-                        <SearchableSelect 
-                          options={[
-                            ...(currentCategory === 'VIDEO' ? videoEquipOptions : soundEquipOptions).map((eq: any) => ({
-                              id: `${eq.name} (${eq.brand} ${eq.model})`,
-                              name: eq.name,
-                              subtext: `${eq.brand || ''} ${eq.model || ''} [${eq.category}]`
-                            })),
-                            { id: '__custom', name: '✏️ Custom entry...' }
-                          ]}
-                          value={(watchItems[index]?.equipmentType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim()}
-                          onChange={(val) => handleVideoEquipChange(index, val.toString())}
-                          placeholder="Select equipment..."
-                          error={errors.items?.[index]?.equipmentType ? 'Required' : undefined}
-                          compact
-                        />
+                        {(() => {
+                          const selectedEquipInOtherRows = watchItems
+                            .map((it: any, idx: number) => idx !== index && (it.category || inquiry?.department) === currentCategory
+                              ? (it.equipmentType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim()
+                              : null)
+                            .filter(Boolean);
+                          const opts = currentCategory === 'VIDEO' ? videoEquipOptions : soundEquipOptions;
+                          return (
+                            <SearchableSelect 
+                              options={[
+                                ...opts
+                                  .filter((eq: any) => !selectedEquipInOtherRows.includes(`${eq.name} (${eq.brand} ${eq.model})`) && !selectedEquipInOtherRows.includes(eq.name))
+                                  .map((eq: any) => ({
+                                    id: `${eq.name} (${eq.brand} ${eq.model})`,
+                                    name: eq.name,
+                                    subtext: `${eq.brand || ''} ${eq.model || ''} [${eq.category}]`
+                                  })),
+                                { id: '__custom', name: '✏️ Custom entry...' }
+                              ]}
+                              value={(watchItems[index]?.equipmentType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim()}
+                              onChange={(val) => handleVideoEquipChange(index, val.toString())}
+                              placeholder="Select equipment..."
+                              error={errors.items?.[index]?.equipmentType ? 'Required' : undefined}
+                              compact
+                            />
+                          );
+                        })()}
                       </div>
                       <div className="md:col-span-1">
                         <label className="block text-[11px] text-slate-500 mb-1">Qty</label>
@@ -310,18 +335,29 @@ function NewQuotationContent() {
                     <>
                       <div className="md:col-span-3">
                         <label className="block text-[11px] text-slate-500 mb-1">LED Type</label>
-                        <SearchableSelect 
-                          options={[...new Set(ledStockOptions.map((s: any) => s.ledType))].map((type: any) => ({
-                            id: type,
-                            name: type,
-                            subtext: ledStockOptions.filter((s: any) => s.ledType === type).map((s: any) => `${s.companyName} (₹${s.pricingSqft}/sqft)`).join(', ')
-                          }))}
-                          value={(watchItems[index]?.ledType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim()}
-                          onChange={(val) => handleLedTypeChange(index, val.toString())}
-                          placeholder="Select LED type..."
-                          error={errors.items?.[index]?.ledType ? 'Required' : undefined}
-                          compact
-                        />
+                        {(() => {
+                          const selectedLedInOtherRows = watchItems
+                            .map((it: any, idx: number) => idx !== index && (it.category || inquiry?.department) === 'LED'
+                              ? (it.ledType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim()
+                              : null)
+                            .filter(Boolean);
+                          return (
+                            <SearchableSelect 
+                              options={[...new Set(ledStockOptions.map((s: any) => s.ledType))]
+                                .filter((type: any) => !selectedLedInOtherRows.includes(type))
+                                .map((type: any) => ({
+                                  id: type,
+                                  name: type,
+                                  subtext: ledStockOptions.filter((s: any) => s.ledType === type).map((s: any) => `${s.companyName} (₹${s.pricingSqft}/sqft)`).join(', ')
+                                }))}
+                              value={(watchItems[index]?.ledType || '').replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim()}
+                              onChange={(val) => handleLedTypeChange(index, val.toString())}
+                              placeholder="Select LED type..."
+                              error={errors.items?.[index]?.ledType ? 'Required' : undefined}
+                              compact
+                            />
+                          );
+                        })()}
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-[11px] font-semibold text-slate-500 mb-1">Dimension Preset</label>
@@ -497,6 +533,18 @@ function NewQuotationContent() {
                         </div>
                       )}
                     </div>
+                  )}
+
+                  {/* Real-time stock hint */}
+                  {(currentCategory === 'VIDEO' || currentCategory === 'SOUND' || currentCategory === 'LED') && (
+                    <QuotationStockHint
+                      items={watchItems}
+                      rowIndex={index}
+                      item={rowItem}
+                      videoEquipOptions={videoEquipOptions}
+                      soundEquipOptions={soundEquipOptions}
+                      ledStockOptions={ledStockOptions}
+                    />
                   )}
 
                   <button 
