@@ -1,9 +1,17 @@
 import jwt from 'jsonwebtoken';
 
-export const generateAccessToken = (userId: number, role: string) => {
-  return jwt.sign({ userId, role }, process.env.JWT_SECRET as string, {
-    expiresIn: (process.env.JWT_EXPIRES_IN || '1h') as any,
-  });
+export const generateAccessToken = (userId: number, role: string, roleUpdatedAt?: Date) => {
+  return jwt.sign(
+    { 
+      userId, 
+      role,
+      roleUpdatedAt: roleUpdatedAt || new Date() // Include role update timestamp for cache validation
+    },
+    process.env.JWT_SECRET as string, 
+    {
+      expiresIn: (process.env.JWT_EXPIRES_IN || '1h') as any,
+    }
+  );
 };
 
 export const generateRefreshToken = (userId: number) => {

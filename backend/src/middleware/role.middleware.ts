@@ -1,10 +1,20 @@
 import { Response, NextFunction } from 'express';
-import { AuthRequest } from './auth.middleware';
+import { AuthRequest, checkPermissionFreshness } from './auth.middleware';
 import { prisma } from '../utils/prisma';
 
 export const authorize = (allowedRoles: string[]) => {
   return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
+      // First check if permissions need refreshing
+      await new Promise<void>((resolve, reject) => {
+        checkPermissionFreshness(req, res, () => resolve());
+      });
+      
+      // If response was already sent (needs refresh), return
+      if (res.headersSent) {
+        return;
+      }
+
       if (!req.user) {
         res.status(401).json({ message: 'Authentication required' });
         return;

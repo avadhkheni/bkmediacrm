@@ -29,7 +29,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const accessToken = generateAccessToken(user.id, user.role);
+    // Get role's updatedAt timestamp for permission cache validation
+    const roleUpdatedAt = user.roleData?.updatedAt || new Date();
+    
+    const accessToken = generateAccessToken(user.id, user.role, roleUpdatedAt);
     const refreshToken = generateRefreshToken(user.id);
 
     // Save refresh token in DB

@@ -30,6 +30,50 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     
+    // Handle permission refresh needed
+    if (error.response?.status === 401 && error.response?.data?.needsRefresh) {
+      try {
+        // Fetch fresh user data with updated permissions
+        const refreshToken = typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null;
+        
+        if (!refreshToken) {
+          useAuthStore.getState().logout();
+          if (typeof window !== "undefined") {
+            window.location.href = '/login';
+          }
+          return Promise.reject(error);
+        }
+
+        // Get new access token with updated role timestamp
+        const response = await axios.post(`${API_URL}/auth/refresh`, {
+          refreshToken,
+        });
+
+        const newAccessToken = response.data.accessToken;
+        
+        if (typeof window !== "undefined") {
+          localStorage.setItem("accessToken", newAccessToken);
+        }
+
+        // Fetch updated user data
+        const userResponse = await axios.get(`${API_URL}/auth/me`, {
+          headers: { Authorization: `Bearer ${newAccessToken}` }
+        });
+
+        useAuthStore.getState().setUser(userResponse.data);
+
+        // Retry original request
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        useAuthStore.getState().logout();
+        if (typeof window !== "undefined") {
+          window.location.href = '/login';
+        }
+        return Promise.reject(refreshError);
+      }
+    }
+    
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
  

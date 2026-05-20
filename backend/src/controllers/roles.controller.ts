@@ -101,7 +101,20 @@ export const updateRole = async (req: Request, res: Response) => {
       });
     });
 
-    res.json(updatedRole);
+    // Count how many users are affected by this role update
+    const affectedUsersCount = await prisma.user.count({
+      where: { role: name }
+    });
+
+    res.json({
+      ...updatedRole,
+      _meta: {
+        affectedUsersCount,
+        message: affectedUsersCount > 0 
+          ? `Role updated. ${affectedUsersCount} user(s) will need to refresh their permissions.`
+          : 'Role updated successfully.'
+      }
+    });
   } catch (error) {
     console.error('Update role error:', error);
     res.status(500).json({ message: 'Failed to update role' });

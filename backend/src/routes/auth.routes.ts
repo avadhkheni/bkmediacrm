@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { login, refresh, logout, getMe } from '../controllers/auth.controller';
 import { body } from 'express-validator';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, checkPermissionFreshness } from '../middleware/auth.middleware';
 
 const router = Router();
 
@@ -31,7 +31,7 @@ router.post(
   refresh
 );
 
-router.get('/me', authenticate, getMe);
+router.get('/me', authenticate, checkPermissionFreshness, getMe);
 router.post('/logout', logout);
 
 // Token refresh is public, but logout should ideally be authenticated

@@ -188,12 +188,19 @@ export default function RolesPage() {
         };
       });
 
-      await api.put(`/roles/${selectedRole.name}`, {
+      const response = await api.put(`/roles/${selectedRole.name}`, {
         description: selectedRole.description,
         permissions: permissionsToSave
       });
 
-      addToast(`Permissions for ${selectedRole.name} updated successfully!`, "success");
+      // Show enhanced success message with affected users count
+      const meta = response.data._meta;
+      if (meta && meta.affectedUsersCount > 0) {
+        addToast(meta.message, "success");
+      } else {
+        addToast(`Permissions for ${selectedRole.name} updated successfully!`, "success");
+      }
+      
       fetchRoles();
 
       // If the current user's role was updated, refresh their permissions immediately
@@ -202,6 +209,7 @@ export default function RolesPage() {
         try {
           const freshUser = await api.get('/auth/me');
           useAuthStore.getState().setUser(freshUser.data);
+          addToast("Your permissions have been refreshed automatically.", "info");
         } catch {
           // silent fail - user can still log out/in
         }
