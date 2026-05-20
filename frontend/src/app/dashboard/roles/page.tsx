@@ -309,6 +309,10 @@ export default function RolesPage() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedStaffId) {
+      addToast("Please select a staff member", "error");
+      return;
+    }
     if (!userName || !userEmail || !userPassword || !userRole) {
       addToast("Please fill in all user login fields", "error");
       return;
@@ -446,14 +450,15 @@ export default function RolesPage() {
               {/* Select Staff Dropdown */}
               <div className="space-y-1">
                 <label className="text-xs font-extrabold text-slate-500 dark:text-slate-400">
-                  Link Staff Profile (Optional)
+                  Link Staff Profile *
                 </label>
                 <select
+                  required
                   value={selectedStaffId}
                   onChange={(e) => handleStaffSelect(e.target.value)}
                   className="w-full bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 >
-                  <option value="">-- Independent User Account --</option>
+                  <option value="" disabled>-- Select Staff --</option>
                   {staffList.map((staff) => {
                     const alreadyHasAccount = users.some(u => u.staffId === staff.id);
                     return (
