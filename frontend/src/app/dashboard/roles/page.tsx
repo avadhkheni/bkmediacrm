@@ -533,7 +533,7 @@ export default function RolesPage() {
                   onChange={(e) => setUserRole(e.target.value)}
                   className="w-full bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 >
-                  <option value="">-- Choose Access Role --</option>
+                  <option value="" disabled>-- Choose Access Role --</option>
                   {roles.map((r) => (
                     <option key={r.name} value={r.name}>
                       {r.name}

@@ -14,12 +14,12 @@ export default function StaffPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    role: "TECHNICIAN",
+    role: "",
     phone: "",
     email: "",
-    department: "VIDEO",
+    department: "",
     perDayRate: "",
-    staffType: "CONTRACT",
+    staffType: "",
     aadharNumber: "",
     address: ""
   });
@@ -52,12 +52,12 @@ export default function StaffPage() {
       setEditingId(null);
       setFormData({
         name: "",
-        role: "TECHNICIAN",
+        role: "",
         phone: "",
         email: "",
-        department: "VIDEO",
+        department: "",
         perDayRate: "",
-        staffType: "CONTRACT",
+        staffType: "",
         aadharNumber: "",
         address: ""
       });
@@ -88,12 +88,12 @@ export default function StaffPage() {
   const handleAddClick = () => {
     setFormData({
       name: "",
-      role: "TECHNICIAN",
+      role: "",
       phone: "",
       email: "",
-      department: "VIDEO",
+      department: "",
       perDayRate: "",
-      staffType: "CONTRACT",
+      staffType: "",
       aadharNumber: "",
       address: ""
     });
@@ -236,10 +236,12 @@ export default function StaffPage() {
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Role *</label>
                   <select
+                    required
                     value={formData.role}
                     onChange={(e) => setFormData({...formData, role: e.target.value})}
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                   >
+                    <option value="" disabled>-- Select Role --</option>
                     <option value="TECHNICIAN">Technician</option>
                     <option value="OPERATOR">Operator</option>
                     <option value="ENGINEER">Engineer</option>
@@ -252,10 +254,12 @@ export default function StaffPage() {
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Department *</label>
                   <select
+                    required
                     value={formData.department}
                     onChange={(e) => setFormData({...formData, department: e.target.value})}
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                   >
+                    <option value="" disabled>-- Select Department --</option>
                     <option value="VIDEO">Video</option>
                     <option value="LED">LED</option>
                     <option value="SOUND">Sound</option>
@@ -265,12 +269,14 @@ export default function StaffPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Staff Type</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Staff Type *</label>
                   <select
+                    required
                     value={formData.staffType}
                     onChange={(e) => setFormData({...formData, staffType: e.target.value})}
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                   >
+                    <option value="" disabled>-- Select Type --</option>
                     <option value="CONTRACT">Contract / Freelance</option>
                     <option value="IN_HOUSE">In-House</option>
                   </select>
