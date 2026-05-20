@@ -121,6 +121,21 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
     const quotationNumber = await generateQuotationNumber();
 
     // Compute GST
+    // Validate vendor-sourced items
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.isVendorRented) {
+        if (!item.vendorId) {
+          return res.status(400).json({ message: `Item ${i + 1}: Please select a supplier for the vendor-rented item` });
+        }
+        const label = item.equipmentType || item.ledType || '';
+        const withoutPrefix = label.replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim();
+        if (!withoutPrefix) {
+          return res.status(400).json({ message: `Item ${i + 1}: Please select a supplier rental item from the chosen vendor` });
+        }
+      }
+    }
+
     const gst = calculateGst(Number(subtotal));
     const effectiveGstRate = Number(gstRate || 18);
 
@@ -291,6 +306,19 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
       const stockError = await validateQuotationItemsStock(items);
       if (stockError) {
         return res.status(400).json({ message: stockError });
+      }
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.isVendorRented) {
+          if (!item.vendorId) {
+            return res.status(400).json({ message: `Item ${i + 1}: Please select a supplier for the vendor-rented item` });
+          }
+          const label = item.equipmentType || item.ledType || '';
+          const withoutPrefix = label.replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim();
+          if (!withoutPrefix) {
+            return res.status(400).json({ message: `Item ${i + 1}: Please select a supplier rental item from the chosen vendor` });
+          }
+        }
       }
     }
 

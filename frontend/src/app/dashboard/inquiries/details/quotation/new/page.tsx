@@ -157,27 +157,38 @@ function NewQuotationContent() {
 
   const onSubmit = async (data: any) => {
     // Frontend validation: check all items have required fields
-    const hasEmptyItems = data.items.some((item: any) => {
+    for (let i = 0; i < data.items.length; i++) {
+      const item = data.items[i];
       const category = item.category || inquiry.department;
-      if (!item.placeName || item.placeName.trim() === '') return true;
+      const missing: string[] = [];
+
+      if (!item.placeName || item.placeName.trim() === '') missing.push('Place Name');
       if (category === 'VIDEO' || category === 'SOUND') {
-        if (!item.equipmentType || item.equipmentType.trim() === '') return true;
-        if (!item.ratePerDay || Number(item.ratePerDay) <= 0) return true;
-        if (!item.days || Number(item.days) <= 0) return true;
+        if (!item.equipmentType || item.equipmentType.trim() === '') missing.push('Equipment');
+        if (!item.ratePerDay || Number(item.ratePerDay) <= 0) missing.push('Rate');
+        if (!item.days || Number(item.days) <= 0) missing.push('Days');
       } else if (category === 'LED') {
-        if (!item.ledType || item.ledType.trim() === '') return true;
-        if (!item.heightFt || Number(item.heightFt) <= 0) return true;
-        if (!item.widthFt || Number(item.widthFt) <= 0) return true;
-        if (!item.ratePerSqft || Number(item.ratePerSqft) <= 0) return true;
-        if (!item.days || Number(item.days) <= 0) return true;
+        if (!item.ledType || item.ledType.trim() === '') missing.push('LED Type');
+        if (!item.heightFt || Number(item.heightFt) <= 0) missing.push('Height');
+        if (!item.widthFt || Number(item.widthFt) <= 0) missing.push('Width');
+        if (!item.ratePerSqft || Number(item.ratePerSqft) <= 0) missing.push('Rate/sqft');
+        if (!item.days || Number(item.days) <= 0) missing.push('Days');
       } else if (category === 'OFFICE') {
-        if (!item.ratePerDay || Number(item.ratePerDay) <= 0) return true;
+        if (!item.ratePerDay || Number(item.ratePerDay) <= 0) missing.push('Rate');
       }
-      return false;
-    });
-    if (hasEmptyItems) {
-      alert('Please fill in all required fields for each item.');
-      return;
+
+      // Vendor-specific validation
+      if (item.isVendorRented) {
+        if (!item.vendorId) missing.push('Supplier selection');
+        const equipmentValue = category === 'LED' ? (item.ledType || '') : (item.equipmentType || '');
+        const withoutPrefix = equipmentValue.replace(/^\[VENDOR:[^\]]+\]\s*/i, '').trim();
+        if (!withoutPrefix) missing.push('Supplier rental item');
+      }
+
+      if (missing.length > 0) {
+        alert(`Line ${i + 1}: Please fill in: ${missing.join(', ')}`);
+        return;
+      }
     }
     if (subtotal <= 0) {
       alert('Subtotal must be greater than 0.');
