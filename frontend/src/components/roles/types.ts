@@ -24,6 +24,7 @@ export interface User {
   isActive: boolean;
   staffId: number | null;
   lastLogin?: string;
+  deletedAt?: string | null;
   staff?: {
     name: string;
     department: string;

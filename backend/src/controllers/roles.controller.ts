@@ -11,7 +11,7 @@ export const getRoles = async (req: Request, res: Response) => {
       include: {
         permissions: true,
         _count: {
-          select: {
+          select: { 
             users: {
               where: { deletedAt: null }
             }
@@ -187,6 +187,7 @@ export const getUsers = async (req: Request, res: Response) => {
         isActive: true,
         lastLogin: true,
         createdAt: true,
+        deletedAt: true,
         staffId: true,
         staff: {
           select: {
@@ -308,17 +309,16 @@ export const deleteUser = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Cannot delete ADMIN account' });
     }
 
-    // Soft delete the user by setting deletedAt, deactivating, clearing the staff connection,
-    // and renaming the email to release the unique constraints while preserving audit logs.
+    // Soft delete the user by setting deletedAt and deactivating.
+    // By keeping the email and staffId intact, Prisma's @unique constraints
+    // naturally prevent another account from being created with the same email or staff connection.
     await prisma.$transaction([
       prisma.refreshToken.deleteMany({ where: { userId: Number(id) } }),
       prisma.user.update({
         where: { id: Number(id) },
         data: {
           deletedAt: new Date(),
-          isActive: false,
-          email: `${user.email}_deleted_${Date.now()}`,
-          staffId: null
+          isActive: false
         }
       })
     ]);

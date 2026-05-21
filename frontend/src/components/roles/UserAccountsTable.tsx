@@ -16,9 +16,12 @@ export function UserAccountsTable({ users, loading, onToggleStatus, onDeleteUser
   const [roleFilter, setRoleFilter] = useState("ALL");
 
   const filteredUsers = users.filter(user => {
+    if (user.deletedAt) return false;
+
     const matchesSearch = user.name.toLowerCase().includes(search.toLowerCase()) || 
                           user.email.toLowerCase().includes(search.toLowerCase());
     const matchesRole = roleFilter === "ALL" || user.role === roleFilter;
+
     return matchesSearch && matchesRole;
   });
 
