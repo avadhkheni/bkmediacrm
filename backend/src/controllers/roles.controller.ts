@@ -11,7 +11,11 @@ export const getRoles = async (req: Request, res: Response) => {
       include: {
         permissions: true,
         _count: {
-          select: { users: true }
+          select: {
+            users: {
+              where: { deletedAt: null }
+            }
+          }
         }
       }
     });
@@ -251,9 +255,9 @@ export const createUser = async (req: Request, res: Response) => {
     });
 
     res.status(201).json(newUser);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create user account error:', error);
-    res.status(500).json({ message: 'Failed to create user login account' });
+    res.status(500).json({ message: error.message || 'Failed to create user login account' });
   }
 };
 
